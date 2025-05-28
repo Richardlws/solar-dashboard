@@ -28,3 +28,5 @@ elif answer=="right":
         print("You go back and lose.")
 else:
     print("Not a valid option. You lose.")
+
+print("Thank you for trying",name)
