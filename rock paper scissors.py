@@ -32,5 +32,5 @@ while True:
         computer_wins+=1
 
 print("Goodbye!")
-print("You won",user_wins,"times")
-print("Computer won",computer_wins,"times")
+print("You won",user_wins,"times.")
+print("Computer won",computer_wins,"times.")
