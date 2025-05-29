@@ -4,7 +4,10 @@ master_pwd = input("What is the master password? ")
 def view():
     with open('password.txt', 'r') as f:
         for line in f.readlines():
-            print(line.rstrip())
+            ##print(line.rstrip())
+            data = line.rstrip()
+            user, passw = data.split("|")
+            print("User:", user, ",Password:", passw)
 
 def add():
     name = input('Account Name: ')
