@@ -8,7 +8,7 @@ def view():
             ##print(line.rstrip())
             data = line.rstrip()
             user, passw = data.split("|")
-            print("User:", user, ",Password:", passw)
+            print("User:", user, "| Password:", passw)
 
 def add():
     name = input('Account Name: ')
