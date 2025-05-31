@@ -48,3 +48,7 @@ while max(player_scores) < max_score:
 
 for player_idx in range(players):
     print("Player number", player_idx + 1, "'s total score is:", player_scores[player_idx])
+
+max_score=max(player_scores)
+winning_idx=player_scores.index(max_score)
+print("Paler number",winning_idx+1,"is the winner with a score of:",max_score)
