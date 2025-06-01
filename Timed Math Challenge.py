@@ -11,7 +11,13 @@ def generate_problem():
     operator = random.choice(OPERATORS)
 
     expr = str(left) + " " + operator + " " + str(right)
-    print(expr)
-    return expr
+    answer = eval(expr)
 
-generate_problem()
+    ##print(expr)
+    return expr, answer
+
+
+expr, answer = generate_problem()
+print(expr, "=", str(answer))
+
+##generate_problem()
