@@ -1,8 +1,10 @@
 import random
+import time
 
-OPERATORS = ["+", "-", "/", "*"]
+OPERATORS = ["+", "-", "*"]
 MIN_OPERAND = 3
 MAX_OPERAND = 12
+TOTAL_PROBLEMS = 10
 
 
 def generate_problem():
@@ -17,7 +19,27 @@ def generate_problem():
     return expr, answer
 
 
-expr, answer = generate_problem()
-print(expr, "=", str(answer))
+wrong = 0
+input("Press enter to start!")
+print("---------------------")
+start_time = time.time()
+
+for i in range(TOTAL_PROBLEMS):
+    expr, answer = generate_problem()
+    while True:
+        guess = input("Problem #" + str(i + 1) + ": " + expr + "=")
+        if guess == str(answer):
+            break
+        wrong += 1
+
+end_time = time.time()
+total_time = round(end_time - start_time, 2)
+
+print("-----------------------")
+print("Wrong times is: ", wrong)
+print("Nice work!You finished in", total_time, "seconds!")
+
+##expr, answer = generate_problem()
+##print(expr, "=", str(answer))
 
 ##generate_problem()
