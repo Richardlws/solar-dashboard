@@ -50,6 +50,12 @@ class SerialDataGUI(QWidget):
                 for key in ['start time', 'end time','total_kwh', 'special_kwh']:
                     label = key_map.get(key, key)
                     value = result.get(key, '')
+                    # 如果是时间，就格式化为只保留到秒
+                    if isinstance(value, str) and ' ' in value and ':' in value:
+                        try:
+                            value = value.split('.')[0]  # 去掉小数秒部分
+                        except:
+                            pass
                     unit = unit_map.get(key, '')
                     output += f"{label}: {value} {unit}\n"
 
