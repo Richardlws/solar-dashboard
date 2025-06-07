@@ -34,17 +34,17 @@ class SerialDataGUI(QWidget):
                 result = extract_and_calculate(file_path)
                 output = ""
                 unit_map = {
-                    'total_kwh': 'kWh',
-                    'special_kwh': 'kWh',
-                    'real_sampling_time_seconds': '秒',
-                    'sampling_interval_seconds': '秒',
-                    'total_normal': '',
-                    'special_sum': '',
-                    'records_normal': '条',
-                    'records_80': '条',
-                    'swapped_segments': '条',
-                    'start time': '',
-                    'end time': ''
+                    '电网用电': 'kWh',
+                    '电网返送': 'kWh',
+                    ##'real_sampling_time_seconds': '秒',
+                    ##'sampling_interval_seconds': '秒',
+                    ##'total_normal': '',
+                    ##'special_sum': '',
+                    ##'records_normal': '条',
+                    ##'records_80': '条',
+                    ##'swapped_segments': '条',
+                    '开始时间': '',
+                    '结束时间': ''
                 }
                 for k, v in result.items():
                     unit = unit_map.get(k, '')
