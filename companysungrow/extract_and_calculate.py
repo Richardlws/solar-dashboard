@@ -34,18 +34,20 @@ class SerialDataGUI(QWidget):
                 result = extract_and_calculate(file_path)
                 output = ""
                 key_map = {
-                    'total_kwh': '电网用电',
-                    'special_kwh': '电网返送',
                     'start time': '开始时间',
-                    'end time': '结束时间'
+                    'end time': '结束时间',
+                    'total_kwh': '电网用电',
+                    'special_kwh': '电网返送'
+
                 }
                 unit_map = {
-                    'total_kwh': 'kWh',
-                    'special_kwh': 'kWh',
                     'start time': '',
-                    'end time': ''
+                    'end time': '',
+                    'total_kwh': 'kWh',
+                    'special_kwh': 'kWh'
+
                 }
-                for key in ['total_kwh', 'special_kwh', 'start time', 'end time']:
+                for key in ['start time', 'end time','total_kwh', 'special_kwh']:
                     label = key_map.get(key, key)
                     value = result.get(key, '')
                     unit = unit_map.get(key, '')
