@@ -1,4 +1,5 @@
 import sys
+import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QTextEdit
 from Serial_Data_Processor import extract_and_calculate
 
@@ -9,7 +10,7 @@ class SerialDataGUI(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("串口接收数据分析器")
+        self.setWindowTitle("光伏发电数据解析器")
         self.setGeometry(200, 200, 600, 400)
 
         layout = QVBoxLayout()
@@ -50,12 +51,9 @@ class SerialDataGUI(QWidget):
                 for key in ['start time', 'end time','total_kwh', 'special_kwh']:
                     label = key_map.get(key, key)
                     value = result.get(key, '')
-                    # 如果是时间，就格式化为只保留到秒
-                    if isinstance(value, str) and ' ' in value and ':' in value:
-                        try:
-                            value = value.split('.')[0]  # 去掉小数秒部分
-                        except:
-                            pass
+                    # 正确格式化时间为“到秒”
+                    if isinstance(value, datetime.datetime):
+                        value = value.strftime("%Y-%m-%d %H:%M:%S")
                     unit = unit_map.get(key, '')
                     output += f"{label}: {value} {unit}\n"
 
