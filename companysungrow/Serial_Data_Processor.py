@@ -90,5 +90,5 @@ def extract_and_calculate(filepath):
 
 
 # 用法示例：
-result = extract_and_calculate("D:\\1.txt")
+result = extract_and_calculate("D:\\2.txt")
 print(result)
