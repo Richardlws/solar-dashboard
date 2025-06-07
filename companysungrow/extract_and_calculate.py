@@ -33,25 +33,28 @@ class SerialDataGUI(QWidget):
             try:
                 result = extract_and_calculate(file_path)
                 output = ""
-                unit_map = {
-                    '电网用电': 'kWh',
-                    '电网返送': 'kWh',
-                    ##'real_sampling_time_seconds': '秒',
-                    ##'sampling_interval_seconds': '秒',
-                    ##'total_normal': '',
-                    ##'special_sum': '',
-                    ##'records_normal': '条',
-                    ##'records_80': '条',
-                    ##'swapped_segments': '条',
-                    '开始时间': '',
-                    '结束时间': ''
+                key_map = {
+                    'total_kwh': '电网用电',
+                    'special_kwh': '电网返送',
+                    'start time': '开始时间',
+                    'end time': '结束时间'
                 }
-                for k, v in result.items():
-                    unit = unit_map.get(k, '')
-                    output += f"{k}: {v} {unit}\n"
-                    self.result_box.setText(output)
+                unit_map = {
+                    'total_kwh': 'kWh',
+                    'special_kwh': 'kWh',
+                    'start time': '',
+                    'end time': ''
+                }
+                for key in ['total_kwh', 'special_kwh', 'start time', 'end time']:
+                    label = key_map.get(key, key)
+                    value = result.get(key, '')
+                    unit = unit_map.get(key, '')
+                    output += f"{label}: {value} {unit}\n"
+
+                self.result_box.setText(output)
+
             except Exception as e:
-                    self.result_box.setText(f"处理出错: {e}")
+                self.result_box.setText(f"处理出错: {e}")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
