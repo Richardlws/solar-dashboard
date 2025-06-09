@@ -131,7 +131,7 @@ class ModbusApp(QWidget):
         self.ax.clear()
         df_sorted = df.sort_values(by="时间")
         times = df_sorted["时间"]
-        values = df_sorted["总有功功率_kW"].rolling(window=3, center=True, min_periods=1).mean()
+        values = df_sorted["总有功功率_kW"].rolling(window=5, center=True, min_periods=1).mean()
 
         self.ax.plot(times, values, linestyle='-', linewidth=1.0)
         self.ax.set_title("总有功功率随时间变化曲线")
