@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 import re
 import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 import sys
 import os
+from PyQt5.QtCore import QDateTime
 
 # 屏蔽部分无关的系统日志（可选）
 sys.stderr = open(os.devnull, 'w')
@@ -74,22 +77,28 @@ def parse_modbus_data(file_path):
             continue
 
     df = pd.DataFrame(results, columns=["时间", "日发电量_kWh", "总发电量_kWh", "总有功功率_kW"])
+    df["时间"] = pd.to_datetime(df["时间"], errors='coerce')
+    df = df.dropna(subset=["时间"])
     return df
 
-# PyQt5 图形界面类
+# ==== 新增：图形界面类 + 折线图功能 ====
 class ModbusApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Modbus 电量分析工具 (PyQt5)")
-        self.resize(800, 600)
+        self.resize(900, 700)
 
         self.text_edit = QTextEdit(self)
         self.btn_load = QPushButton("选择数据文件", self)
         self.btn_load.clicked.connect(self.load_file)
 
+        self.figure, self.ax = plt.subplots()
+        self.canvas = FigureCanvas(self.figure)
+
         layout = QVBoxLayout()
         layout.addWidget(self.btn_load)
         layout.addWidget(self.text_edit)
+        layout.addWidget(self.canvas)
         self.setLayout(layout)
 
     def load_file(self):
@@ -112,6 +121,23 @@ class ModbusApp(QWidget):
         output += f"时间: {max_power_row['时间']}\n日发电量: {max_power_row['日发电量_kWh']} kWh\n总发电量: {max_power_row['总发电量_kWh']} kWh\n总有功功率: {max_power_row['总有功功率_kW']} kW"
 
         self.text_edit.setPlainText(output)
+        self.plot_graph(df)
+
+    def plot_graph(self, df):
+        self.ax.clear()
+        df_sorted = df.sort_values(by="时间")
+        times = df_sorted["时间"]
+        values = df_sorted["日发电量_kWh"]
+
+        self.ax.plot(times, values, marker='o', linestyle='-')
+        self.ax.set_title("日发电量随时间变化曲线")
+        self.ax.set_xlabel("时间（小时）")
+        self.ax.set_ylabel("日发电量（kWh）")
+        self.ax.grid(True)
+
+        self.ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: pd.to_datetime(x).strftime('%H:%M') if pd.notna(x) else ""))
+        self.figure.autofmt_xdate()
+        self.canvas.draw()
 
 # 主程序入口
 if __name__ == '__main__':
