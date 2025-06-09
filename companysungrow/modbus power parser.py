@@ -127,12 +127,12 @@ class ModbusApp(QWidget):
         self.ax.clear()
         df_sorted = df.sort_values(by="时间")
         times = df_sorted["时间"]
-        values = df_sorted["日发电量_kWh"]
+        values = df_sorted["总有功功率_kW"]
 
         self.ax.plot(times, values, marker='o', linestyle='-')
-        self.ax.set_title("日发电量随时间变化曲线")
+        self.ax.set_title("总有功功率随时间变化曲线")
         self.ax.set_xlabel("时间（小时）")
-        self.ax.set_ylabel("日发电量（kWh）")
+        self.ax.set_ylabel("总有功功率（kW）")
         self.ax.grid(True)
 
         self.ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: pd.to_datetime(x).strftime('%H:%M') if pd.notna(x) else ""))
