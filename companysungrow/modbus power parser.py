@@ -7,7 +7,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 import sys
 import os
-from PyQt5.QtCore import QDateTime, Timedelta
+from PyQt5.QtCore import QDateTime
 
 # 屏蔽部分无关的系统日志（可选）
 sys.stderr = open(os.devnull, 'w')
