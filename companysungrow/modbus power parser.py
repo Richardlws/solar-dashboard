@@ -2,6 +2,7 @@
 import re
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 import sys
@@ -124,8 +125,8 @@ class ModbusApp(QWidget):
         self.plot_graph(df)
 
     def plot_graph(self, df):
-        plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置中文字体为黑体
-        plt.rcParams['axes.unicode_minus'] = False     # 解决负号显示为方块的问题
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+        plt.rcParams['axes.unicode_minus'] = False
 
         self.ax.clear()
         df_sorted = df.sort_values(by="时间")
@@ -138,7 +139,10 @@ class ModbusApp(QWidget):
         self.ax.set_ylabel("总有功功率（kW）")
         self.ax.grid(True)
 
-        self.ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: pd.to_datetime(x).strftime('%H:%M') if pd.notna(x) else ""))
+        self.ax.set_ylim(0, 15)
+        self.ax.set_yticks(range(0, 16, 1))
+        self.ax.xaxis.set_major_locator(mdates.HourLocator())
+        self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         self.figure.autofmt_xdate()
         self.canvas.draw()
 
