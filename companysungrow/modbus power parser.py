@@ -7,7 +7,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 import sys
 import os
-from PyQt5.QtCore import QDateTime
+from PyQt5.QtCore import QDateTime, Timedelta
 
 # 屏蔽部分无关的系统日志（可选）
 sys.stderr = open(os.devnull, 'w')
@@ -82,7 +82,7 @@ def parse_modbus_data(file_path):
     df = df.dropna(subset=["时间"])
     return df
 
-# ==== 新增：图形界面类 + 折线图功能 ====
+# ==== 图形界面类 + 折线图功能 ====
 class ModbusApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -131,9 +131,9 @@ class ModbusApp(QWidget):
         self.ax.clear()
         df_sorted = df.sort_values(by="时间")
         times = df_sorted["时间"]
-        values = df_sorted["总有功功率_kW"]
+        values = df_sorted["总有功功率_kW"].rolling(window=3, center=True, min_periods=1).mean()
 
-        self.ax.plot(times, values, marker='.', linestyle='-', linewidth=0.8, markersize=2)
+        self.ax.plot(times, values, linestyle='-', linewidth=1.0)
         self.ax.set_title("总有功功率随时间变化曲线")
         self.ax.set_xlabel("时间（小时）")
         self.ax.set_ylabel("总有功功率（kW）")
