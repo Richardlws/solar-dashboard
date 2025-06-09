@@ -124,6 +124,9 @@ class ModbusApp(QWidget):
         self.plot_graph(df)
 
     def plot_graph(self, df):
+        plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置中文字体为黑体
+        plt.rcParams['axes.unicode_minus'] = False     # 解决负号显示为方块的问题
+
         self.ax.clear()
         df_sorted = df.sort_values(by="时间")
         times = df_sorted["时间"]
