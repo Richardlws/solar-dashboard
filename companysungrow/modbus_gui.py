@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 import re
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog, QMessageBox
 import sys
 import os
-from PyQt5.QtCore import QDateTime
+from datetime import datetime
 
 # 屏蔽部分无关的系统日志（可选）
 sys.stderr = open(os.devnull, 'w')
@@ -30,7 +29,7 @@ def parse_modbus_data(file_path):
             lines = f.readlines()
     except Exception as e:
         QMessageBox.critical(None, "文件错误", f"无法读取文件: {e}")
-        return pd.DataFrame()
+        return []
 
     grouped_frames = []
     current_frame = []
@@ -39,10 +38,8 @@ def parse_modbus_data(file_path):
 
     for line in lines:
         line = line.strip()
-
         if re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}", line):
             current_timestamp = re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}", line).group(0)
-
         if "01 04 46" in line:
             if collecting and current_frame:
                 grouped_frames.append((current_timestamp, current_frame))
@@ -56,7 +53,6 @@ def parse_modbus_data(file_path):
                 grouped_frames.append((current_timestamp, current_frame))
                 current_frame = []
             collecting = False
-
     if collecting and current_frame:
         grouped_frames.append((current_timestamp, current_frame))
 
@@ -72,15 +68,12 @@ def parse_modbus_data(file_path):
             if total_power >= 0x80000000:
                 total_power -= 0x100000000
             total_power *= 0.001
-            timestamp = timestamp.split('.')[0] if timestamp else ""
-            results.append((timestamp, daily_energy, total_energy, total_power))
+            dt = datetime.strptime(timestamp.split('.')[0], "%Y-%m-%d %H:%M:%S")
+            results.append((dt, daily_energy, total_energy, total_power))
         except:
             continue
 
-    df = pd.DataFrame(results, columns=["时间", "日发电量_kWh", "总发电量_kWh", "总有功功率_kW"])
-    df["时间"] = pd.to_datetime(df["时间"], errors='coerce')
-    df = df.dropna(subset=["时间"])
-    return df
+    return results
 
 # ==== 图形界面类 + 折线图功能 ====
 class ModbusApp(QWidget):
@@ -107,33 +100,39 @@ class ModbusApp(QWidget):
         if not file_path:
             return
 
-        df = parse_modbus_data(file_path)
-        if df.empty:
+        data = parse_modbus_data(file_path)
+        if not data:
             self.text_edit.setPlainText("未能解析出任何有效数据。")
             return
 
-        last_row = df.iloc[-1]
-        max_power_row = df.loc[df["总有功功率_kW"].idxmax()]
+        data.sort(key=lambda x: x[0])
+        last_row = data[-1]
+        max_row = max(data, key=lambda x: x[3])
 
         output = "最后一帧数据：\n"
-        output += f"时间: {last_row['时间']}\n日发电量: {last_row['日发电量_kWh']} kWh\n总发电量: {last_row['总发电量_kWh']} kWh\n总有功功率: {last_row['总有功功率_kW']} kW\n\n"
-
+        output += f"时间: {last_row[0]}\n日发电量: {last_row[1]} kWh\n总发电量: {last_row[2]} kWh\n总有功功率: {last_row[3]} kW\n\n"
         output += "最大功率帧：\n"
-        output += f"时间: {max_power_row['时间']}\n日发电量: {max_power_row['日发电量_kWh']} kWh\n总发电量: {max_power_row['总发电量_kWh']} kWh\n总有功功率: {max_power_row['总有功功率_kW']} kW"
+        output += f"时间: {max_row[0]}\n日发电量: {max_row[1]} kWh\n总发电量: {max_row[2]} kWh\n总有功功率: {max_row[3]} kW"
 
         self.text_edit.setPlainText(output)
-        self.plot_graph(df)
+        self.plot_graph(data)
 
-    def plot_graph(self, df):
+    def plot_graph(self, data):
         plt.rcParams['font.sans-serif'] = ['SimHei']
         plt.rcParams['axes.unicode_minus'] = False
 
         self.ax.clear()
-        df_sorted = df.sort_values(by="时间")
-        times = df_sorted["时间"]
-        values = df_sorted["总有功功率_kW"].rolling(window=5, center=True, min_periods=1).mean()
+        times = [row[0] for row in data]
+        powers = [row[3] for row in data]
 
-        self.ax.plot(times, values, linestyle='-', linewidth=1.0)
+        # 简易滑动平均
+        smoothed = []
+        w = 5
+        for i in range(len(powers)):
+            window = powers[max(0, i - w//2): min(len(powers), i + w//2 + 1)]
+            smoothed.append(sum(window) / len(window))
+
+        self.ax.plot(times, smoothed, linestyle='-', linewidth=1.0)
         self.ax.set_title("总有功功率随时间变化曲线")
         self.ax.set_xlabel("时间（小时）")
         self.ax.set_ylabel("总有功功率（kW）")
