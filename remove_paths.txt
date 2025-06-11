@@ -1,0 +1,6 @@
+companysungrow/dist/modbus power parser.exe
+companysungrow/dist/modbus_gui.exe
+companysungrow/dist/modbus power.exe
+companysungrow/build/modbus power parser/EXE-00.toc
+companysungrow/build/modbus power/EXE-00.toc
+companysungrow/build/modbus_gui/EXE-00.toc
