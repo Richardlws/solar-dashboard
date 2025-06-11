@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>太阳能光伏数据查看系统</title>
+    <link href='https://cdn.bootcdn.net/ajax/libs/fullcalendar/6.1.8/index.global.min.css' rel='stylesheet' />
+    <script src='https://cdn.bootcdn.net/ajax/libs/fullcalendar/6.1.8/index.global.min.js'></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/axios/1.6.7/axios.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/lunar-javascript/1.5.0/lunar.min.js"></script>
+    <style>
+        body {
+            font-family: "Microsoft Yahei", sans-serif;
+            padding: 30px;
+            background: #f4f4f4;
+        }
+        .container {
+            display: flex;
+            gap: 30px;
+        }
+        #calendar {
+            width: 50%;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #result {
+            flex: 1;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        #loading {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            font-size: 14px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #loading-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ccc;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 1.5em;
+            line-height: 1.7;
+        }
+        .fc-daygrid-day.selected {
+            background-color: #cce5ff !important;
+        }
+        .lunar-text {
+            font-size: 11px;
+            color: #888;
+            display: block;
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .fc-daygrid-day-frame {
+            position: relative;
+        }
+        #plot-img {
+            max-width: 100%;
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align:left; margin-left: 500px;">太阳能光伏数据查看系统</h2>
+    <div class="container">
+        <div id='calendar'></div>
+        <div id="result" style="visibility: hidden;">
+            <h3 id="data-title">数据结果</h3>
+            <div id="loading" style="display:none;">
+                <div id="loading-spinner"></div>
+                <span>加载中...</span>
+            </div>
+            <pre id="data-content">(点击日期查看电网用电与太阳能发电数据)</pre>
+            <img id="plot-img" src="" alt="图像加载中...">
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            let lastSelectedCell = null;
+
+            const renderLunar = () => {
+                const dayCells = document.querySelectorAll('.fc-daygrid-day');
+                dayCells.forEach(cell => {
+                    const dateStr = cell.getAttribute('data-date');
+                    if (!dateStr) return;
+
+                    try {
+                        const date = new Date(dateStr + 'T00:00:00');
+                        const lunar = Lunar.fromDate(date);
+                        const holiday = lunar.getFestivals().concat(lunar.getOtherFestivals()).join(',');
+                        const lunarStr = lunar.getMonthInChinese() + '月' + lunar.getDayInChinese();
+                        const label = holiday || lunarStr;
+
+                        const frame = cell.querySelector('.fc-daygrid-day-frame');
+                        if (frame && !frame.querySelector('.lunar-text')) {
+                            const span = document.createElement('span');
+                            span.className = 'lunar-text';
+                            span.innerText = label;
+                            frame.appendChild(span);
+                        }
+                    } catch (e) {
+                        console.warn('农历渲染错误：', e);
+                    }
+                });
+            };
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'zh-cn',
+                headerToolbar: {
+                    left: 'prevYear,prev',
+                    center: 'title',
+                    right: 'next,nextYear'
+                },
+                datesSet: function() {
+                    setTimeout(renderLunar, 100);
+                },
+                dateClick: function(info) {
+                    if (lastSelectedCell) {
+                        lastSelectedCell.classList.remove('selected');
+                    }
+                    lastSelectedCell = info.dayEl;
+                    lastSelectedCell.classList.add('selected');
+
+                    const resultDiv = document.getElementById("result");
+                    const dataTitle = document.getElementById("data-title");
+                    const dataContent = document.getElementById("data-content");
+                    const loading = document.getElementById("loading");
+                    const img = document.getElementById("plot-img");
+
+                    resultDiv.style.visibility = 'hidden';
+                    dataContent.innerText = '';
+                    img.style.display = 'none';
+
+                    const dateStr = info.dateStr;
+                    dataTitle.innerText = `数据结果 - ${dateStr}`;
+                    loading.style.display = 'flex';
+                    resultDiv.style.visibility = 'visible';
+
+                    axios.get(`/get_data?date=${dateStr}`)
+                        .then(res => {
+                            const data = res.data;
+                            let text = data.text || '(未查到数据)';
+                            if (data.daily_energy !== undefined) {
+                                const lines = text.split('\n');
+                                const index = lines.findIndex(line => line.startsWith("结束时间："));
+                                if (index !== -1) {
+                                    lines.splice(index + 1, 0, `当日发电量：${data.daily_energy.toFixed(1)} kWh`);
+                                    text = lines.join('\n');
+                                }
+                            }
+                            dataContent.innerText = text;
+                            if (data.plot_url) {
+                                img.src = data.plot_url + '?t=' + new Date().getTime();
+                                img.style.display = 'block';
+                            } else {
+                                img.style.display = 'none';
+                            }
+                        })
+                        .catch(err => {
+                            dataContent.innerText = '(请求失败)';
+                            img.style.display = 'none';
+                        })
+                        .finally(() => {
+                            loading.style.display = 'none';
+                        });
+                }
+            });
+            calendar.render();
+            renderLunar();
+        });
+    </script>
+</body>
+</html>
