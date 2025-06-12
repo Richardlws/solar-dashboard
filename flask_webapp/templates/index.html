@@ -235,7 +235,7 @@
                         .then(res => {
                             const data = res.data;
                             let text = data.text || '(未查到数据)';
-                            if (data.daily_energy !== undefined) {
+                            if (typeof data.daily_energy === 'number') {
                                 const lines = text.split('\n');
                                 const index = lines.findIndex(line => line.startsWith("结束时间："));
                                 if (index !== -1) {
@@ -243,6 +243,7 @@
                                     text = lines.join('\n');
                                 }
                             }
+
                             dataContent.innerText = text;
                             if (data.plot_url) {
                                 img.src = data.plot_url + '?t=' + new Date().getTime();
