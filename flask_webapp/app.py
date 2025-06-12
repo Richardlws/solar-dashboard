@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from Serial_Data_Processor import extract_and_calculate
 from modbus_parser import parse_modbus_data  # 已从 modbus_gui 中拆出
+from datetime import timedelta
 
 app = Flask(__name__)
 
@@ -96,6 +97,58 @@ def get_data():
         'text': '\n'.join(output_lines),
         'plot_url': plot_url
     })
+
+@app.route('/get_summary')
+def get_summary():
+    try:
+        today = datetime.today().date()
+        start_of_month = today.replace(day=1)
+        start_of_year = today.replace(month=1, day=1)
+        end_date = today - timedelta(days=1)  # 当前日不统计
+
+        def get_range_dates(start, end):
+            return [(start + timedelta(days=i)).strftime('%Y-%m-%d')
+                    for i in range((end - start).days + 1)]
+
+        def sum_energy(from_date, to_date):
+            dates = get_range_dates(from_date, to_date)
+            total_kwh = 0
+            total_solar = 0
+            for date in dates:
+                base = f"[192.168.1.254] {date}"
+                file1 = os.path.join(DATA_DIR, base + "-port1.txt")
+                file2 = os.path.join(DATA_DIR, base + "-port2.txt")
+                if os.path.exists(file1):
+                    try:
+                        result = extract_and_calculate(file1)
+                        total_kwh += result.get("total_kwh", 0)
+                    except:
+                        pass
+                if os.path.exists(file2):
+                    try:
+                        parsed = parse_modbus_data(file2)
+                        if parsed:
+                            total_solar += parsed[-1][1]  # daily_energy
+                    except:
+                        pass
+            return total_kwh, total_solar
+
+        m_kwh, m_solar = sum_energy(start_of_month, end_date)
+        y_kwh, y_solar = sum_energy(start_of_year, end_date)
+
+        # ✅ 打印调试用
+        print(f"月电：{m_kwh:.2f} kWh，年电：{y_kwh:.2f} kWh，月太阳：{m_solar:.2f} kWh，年太阳：{y_solar:.2f} kWh")
+
+        return jsonify({
+            "monthly_kwh": round(m_kwh, 2),
+            "monthly_solar": round(m_solar, 2),
+            "yearly_kwh": round(y_kwh, 2),
+            "yearly_solar": round(y_solar, 2),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -138,6 +138,21 @@
         flatpickr("#start-date", { dateFormat: "Y-m-d" });
         flatpickr("#end-date", { dateFormat: "Y-m-d" });
 
+            // 自动汇总函数
+        function fetchAutoSummary() {
+            axios.get('/get_summary')
+                .then(res => {
+                    const data = res.data;
+                    document.getElementById('monthly-power').innerText = `本月用电量（电网）：${data.monthly_kwh || 0} kWh`;
+                    document.getElementById('yearly-power').innerText = `本年用电量（电网）：${data.yearly_kwh || 0} kWh`;
+                    document.getElementById('monthly-solar').innerText = `本月发电量（太阳能）：${data.monthly_solar || 0} kWh`;
+                    document.getElementById('yearly-solar').innerText = `本年发电量（太阳能）：${data.yearly_solar || 0} kWh`;
+                })
+                .catch(() => {
+                    console.warn('自动汇总数据加载失败');
+                });
+        }
+
         function fetchRangeSummary() {
             const start = document.getElementById('start-date').value;
             const end = document.getElementById('end-date').value;
@@ -247,6 +262,7 @@
             });
             calendar.render();
             renderLunar();
+            fetchAutoSummary();
         });
     </script>
 </body>
