@@ -12,25 +12,31 @@
             font-family: "Microsoft Yahei", sans-serif;
             padding: 30px;
             background: #f4f4f4;
+            overflow-x: auto;
         }
         .container {
             display: flex;
             gap: 30px;
+            min-width: 1400px;
         }
-        #calendar {
-            width: 50%;
-            background: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        #result {
-            flex: 1;
+        #calendar{
+            width: 420px;
             background: #fff;
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 0 8px rgba(0,0,0,0.1);
-            position: relative;
+        }
+        #result, #summary-box {
+            width: 420px;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+            font-size: 1.5em;
+            line-height: 1.7;
+        }
+        #result, #summary-box {
+            flex-shrink: 0;
         }
         #loading {
             position: absolute;
@@ -80,12 +86,28 @@
             display: none;
             margin-top: 20px;
         }
+        #summary-box h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        #summary-box input[type="date"] {
+            margin: 0 5px;
+        }
+        #summary-box button {
+            margin-left: 10px;
+        }
+        #range-summary {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <h2 style="text-align:left; margin-left: 500px;">太阳能光伏数据查看系统</h2>
     <div class="container">
+        <!-- 日历 -->
         <div id='calendar'></div>
+
+        <!-- 数据结果 -->
         <div id="result" style="visibility: hidden;">
             <h3 id="data-title">数据结果</h3>
             <div id="loading" style="display:none;">
@@ -95,9 +117,42 @@
             <pre id="data-content">(点击日期查看电网用电与太阳能发电数据)</pre>
             <img id="plot-img" src="" alt="图像加载中...">
         </div>
+
+        <!-- 汇总区域 -->
+        <div id="summary-box">
+            <h4>📊 数据汇总区域</h4>
+            <div>
+                <span id="monthly-power">本月用电量（电网）：-</span><br>
+                <span id="yearly-power">本年用电量（电网）：-</span><br>
+                <span id="monthly-solar">本月发电量（太阳能）：-</span><br>
+                <span id="yearly-solar">本年发电量（太阳能）：-</span><br>
+            </div>
+            <div style="margin-top: 10px;">
+                📅 时间范围：
+                <input type="date" id="start-date">
+                <input type="date" id="end-date">
+                <button onclick="fetchRangeSummary()">查询</button>
+            </div>
+            <div id="range-summary"></div>
+        </div>
     </div>
 
     <script>
+        function fetchRangeSummary() {
+            const start = document.getElementById('start-date').value;
+            const end = document.getElementById('end-date').value;
+            if (!start || !end) return;
+            axios.get(`/get_summary?start=${start}&end=${end}`)
+                .then(res => {
+                    const data = res.data;
+                    document.getElementById('range-summary').innerText =
+                        `所选区间总用电量：${data.total_kwh || 0} kWh\n所选区间总发电量：${data.total_solar || 0} kWh`;
+                })
+                .catch(() => {
+                    document.getElementById('range-summary').innerText = '汇总获取失败';
+                });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
             let lastSelectedCell = null;
