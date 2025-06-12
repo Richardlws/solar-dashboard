@@ -10,64 +10,41 @@
     <style>
         body {
             font-family: "Microsoft Yahei", sans-serif;
-            padding: 30px;
             background: #f4f4f4;
-            overflow-x: auto;
+            margin: 0;
+            padding: 20px;
+            overflow: auto;
         }
-        .container {
-            display: flex;
-            gap: 30px;
-            min-width: 1400px;
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
         }
-        #calendar{
-            width: 420px;
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            width: 1400px;
+            height: 900px;
+            margin: 0 auto;
+        }
+
+        .grid-item {
             background: #fff;
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 0 8px rgba(0,0,0,0.1);
-        }
-        #result, #summary-box {
-            width: 420px;
-            background: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+            overflow: auto;
             font-size: 1.5em;
             line-height: 1.7;
         }
-        #result, #summary-box {
-            flex-shrink: 0;
-        }
-        #loading {
-            position: absolute;
-            top: 16px;
-            right: 20px;
-            font-size: 14px;
-            color: #888;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        #loading-spinner {
-            width: 14px;
-            height: 14px;
-            border: 2px solid #ccc;
-            border-top-color: #007bff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-size: 1.5em;
-            line-height: 1.7;
-        }
-        .fc-daygrid-day.selected {
+
+        #calendar .fc-daygrid-day.selected {
             background-color: #cce5ff !important;
         }
+
         .lunar-text {
             font-size: 11px;
             color: #888;
@@ -78,37 +55,60 @@
             z-index: 10;
             pointer-events: none;
         }
+
         .fc-daygrid-day-frame {
             position: relative;
         }
+
+        #loading {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        #loading-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ccc;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         #plot-img {
             max-width: 100%;
             display: none;
             margin-top: 20px;
         }
+
         #summary-box h4 {
             margin-top: 0;
             margin-bottom: 10px;
         }
+
         #summary-box input[type="date"] {
             margin: 0 5px;
         }
+
         #summary-box button {
             margin-left: 10px;
-        }
-        #range-summary {
-            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <h2 style="text-align:left; margin-left: 500px;">太阳能光伏数据查看系统</h2>
-    <div class="container">
-        <!-- 日历 -->
-        <div id='calendar'></div>
+    <h2>太阳能光伏数据查看系统</h2>
+    <div class="grid-container">
+        <!-- 左上 日历 -->
+        <div id="calendar" class="grid-item"></div>
 
-        <!-- 数据结果 -->
-        <div id="result" style="visibility: hidden;">
+        <!-- 右上 数据结果 -->
+        <div id="result" class="grid-item">
             <h3 id="data-title">数据结果</h3>
             <div id="loading" style="display:none;">
                 <div id="loading-spinner"></div>
@@ -118,8 +118,8 @@
             <img id="plot-img" src="" alt="图像加载中...">
         </div>
 
-        <!-- 汇总区域 -->
-        <div id="summary-box">
+        <!-- 左下 数据汇总 -->
+        <div id="summary-box" class="grid-item">
             <h4>📊 数据汇总区域</h4>
             <div>
                 <span id="monthly-power">本月用电量（电网）：-</span><br>
@@ -133,8 +133,11 @@
                 <input type="date" id="end-date">
                 <button onclick="fetchRangeSummary()">查询</button>
             </div>
-            <div id="range-summary"></div>
+            <div id="range-summary" style="margin-top: 10px;"></div>
         </div>
+
+        <!-- 右下空白预留 -->
+        <div class="grid-item"></div>
     </div>
 
     <script>
@@ -207,16 +210,12 @@
                     const loading = document.getElementById("loading");
                     const img = document.getElementById("plot-img");
 
-                    resultDiv.style.visibility = 'hidden';
                     dataContent.innerText = '';
                     img.style.display = 'none';
-
-                    const dateStr = info.dateStr;
-                    dataTitle.innerText = `数据结果 - ${dateStr}`;
+                    dataTitle.innerText = `数据结果 - ${info.dateStr}`;
                     loading.style.display = 'flex';
-                    resultDiv.style.visibility = 'visible';
 
-                    axios.get(`/get_data?date=${dateStr}`)
+                    axios.get(`/get_data?date=${info.dateStr}`)
                         .then(res => {
                             const data = res.data;
                             let text = data.text || '(未查到数据)';
@@ -232,19 +231,17 @@
                             if (data.plot_url) {
                                 img.src = data.plot_url + '?t=' + new Date().getTime();
                                 img.style.display = 'block';
-                            } else {
-                                img.style.display = 'none';
                             }
                         })
                         .catch(err => {
                             dataContent.innerText = '(请求失败)';
-                            img.style.display = 'none';
                         })
                         .finally(() => {
                             loading.style.display = 'none';
                         });
                 }
             });
+
             calendar.render();
             renderLunar();
         });
