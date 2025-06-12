@@ -1,3 +1,4 @@
+import json
 import matplotlib
 matplotlib.use('Agg')
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
@@ -17,9 +18,7 @@ DATA_DIR = r'C:\csgatewaynew20241104\log'
 PLOT_DIR = 'static/plots'
 os.makedirs(PLOT_DIR, exist_ok=True)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+import json  # 添加在顶部
 
 @app.route('/get_data')
 def get_data():
@@ -31,7 +30,28 @@ def get_data():
     file1 = os.path.join(DATA_DIR, base + "-port1.txt")
     file2 = os.path.join(DATA_DIR, base + "-port2.txt")
 
+    cache_file = os.path.join('cache', f"{date_str}.json")
+    os.makedirs('cache', exist_ok=True)
+
+    # 判断是否可以使用缓存
+    def is_cache_valid():
+        if not os.path.exists(cache_file):
+            return False
+        cache_mtime = os.path.getmtime(cache_file)
+        file1_mtime = os.path.getmtime(file1) if os.path.exists(file1) else 0
+        file2_mtime = os.path.getmtime(file2) if os.path.exists(file2) else 0
+        return cache_mtime > max(file1_mtime, file2_mtime)
+
+    if is_cache_valid():
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                return jsonify(json.load(f))
+        except Exception as e:
+            print(f"读取缓存失败，回退重算：{e}")
+
     output_lines = []
+    plot_url = ''
+    daily_energy = None
 
     # 电网用电（port1）
     if os.path.exists(file1):
@@ -51,7 +71,6 @@ def get_data():
     else:
         output_lines.append("未找到电网用电数据文件")
 
-    plot_url = ''
     # 太阳能发电（port2）
     if os.path.exists(file2):
         try:
@@ -93,10 +112,20 @@ def get_data():
     else:
         output_lines.append("未找到太阳能发电数据文件")
 
-    return jsonify({
+    # 返回数据 + 写入缓存
+    result_json = {
         'text': '\n'.join(output_lines),
-        'plot_url': plot_url
-    })
+        'plot_url': plot_url,
+        'daily_energy': daily_energy
+    }
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(result_json, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"写入缓存失败：{e}")
+
+    return jsonify(result_json)
+
 
 @app.route('/get_summary')
 def get_summary():
