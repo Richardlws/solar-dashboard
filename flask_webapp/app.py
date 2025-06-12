@@ -18,7 +18,10 @@ DATA_DIR = r'C:\csgatewaynew20241104\log'
 PLOT_DIR = 'static/plots'
 os.makedirs(PLOT_DIR, exist_ok=True)
 
-import json  # 添加在顶部
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 
 @app.route('/get_data')
 def get_data():
