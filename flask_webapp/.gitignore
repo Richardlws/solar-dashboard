@@ -16,3 +16,7 @@ dist/
 # 忽略 IDE 文件
 .vscode/
 .idea/
+
+# 忽略缓存文件
+.summary_cache
+.cache
