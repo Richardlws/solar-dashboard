@@ -103,6 +103,53 @@
         #summary-box button:hover {
             background-color: #0056b3;
         }
+        .range-box {
+          border: 1px solid #ccc;
+          border-radius: 12px;
+          padding: 15px;
+          margin-top: 20px;
+          background-color: #f9f9f9;
+        }
+
+        .range-title {
+          font-weight: bold;
+          font-size: 16px;
+          margin-bottom: 10px;
+        }
+
+        .range-controls {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .range-controls input[type="text"] {
+          padding: 6px 10px;
+          border-radius: 6px;
+          border: 1px solid #aaa;
+          min-width: 130px;
+        }
+
+        .range-controls button {
+          padding: 6px 14px;
+          border-radius: 6px;
+          background-color: #007bff;
+          color: white;
+          border: none;
+          cursor: pointer;
+        }
+
+        .range-controls button:hover {
+          background-color: #0056b3;
+        }
+
+        .range-result {
+          margin-top: 12px;
+          font-family: monospace;
+          white-space: pre-wrap;
+        }
+
     </style>
 </head>
 <body>
@@ -124,12 +171,17 @@
             <span id="yearly-power">本年用电量（电网）：-</span>
             <span id="monthly-solar">本月发电量（太阳能）：-</span>
             <span id="yearly-solar">本年发电量（太阳能）：-</span>
-            <div style="margin-top: 10px;">
-                📅 时间范围：
+            <div class="range-box">
+              <div class="range-title">🔍 查询时间范围</div>
+              <div class="range-controls">
                 <input type="text" id="start-date" placeholder="起始日期">
+                <span class="to-text">到</span>
                 <input type="text" id="end-date" placeholder="结束日期">
                 <button onclick="fetchRangeSummary()">查询</button>
+              </div>
+              <div id="range-summary" class="range-result"></div>
             </div>
+
             <div id="range-summary" style="margin-top: 10px;"></div>
         </div>
     </div>
