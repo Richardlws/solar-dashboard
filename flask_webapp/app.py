@@ -7,6 +7,7 @@ import matplotlib.dates as mdates
 import numpy as np
 from flask import Flask, request, jsonify, render_template
 import os
+import re
 from datetime import datetime
 from Serial_Data_Processor import extract_and_calculate
 from modbus_parser import parse_modbus_data  # 已从 modbus_gui 中拆出
@@ -14,11 +15,74 @@ from datetime import timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+
+
 app = Flask(__name__)
 
 DATA_DIR = r'C:\csgatewaynew20241104\log'
 PLOT_DIR = 'static/plots'
 os.makedirs(PLOT_DIR, exist_ok=True)
+
+
+def get_combined_result_for_date(date_str):
+    log_dir = r"C:\csgatewaynew20241104\log"
+    port1_file = f"[192.168.1.254] {date_str}-port1.txt"
+    port2_file = f"[192.168.1.254] {date_str}-port2.txt"
+    path1 = os.path.join(log_dir, port1_file)
+    path2 = os.path.join(log_dir, port2_file)
+
+    result_text = ""
+    daily_energy = None
+
+    # 处理 port1（电网用电）
+    if os.path.exists(path1):
+        try:
+            data1 = extract_and_calculate(path1)
+            result_text += (
+                f"📥 电网用电\n"
+                f"开始时间：{data1['start time']}\n"
+                f"结束时间：{data1['end time']}\n"
+                f"总用电量（付费电量）：{data1['total_kwh']} kWh\n"
+                f"返送电网电量：{data1['special_kwh']} kWh\n"
+            )
+            daily_energy = data1['total_kwh']
+        except Exception as e:
+            result_text += f"[port1] 数据解析失败：{e}\n"
+    else:
+        result_text += "未找到电网用电数据文件（port1）\n"
+
+    # 处理 port2（太阳能发电）
+    if os.path.exists(path2):
+        try:
+            data2 = parse_modbus_data(path2)
+            if data2:
+                latest = max(data2, key=lambda x: x[0])
+                dt, day_kwh, total_kwh, max_power = latest
+                result_text += (
+                    f"\n🔆 太阳能发电\n"
+                    f"结束时间：{dt}\n"
+                    f"当日发电量：{day_kwh:.1f} kWh\n"
+                    f"装机后总发电量：{total_kwh / 100:.2f} kWh\n"
+                    f"当日最大功率：{max_power:.3f} kW\n"
+                    f"最大功率时间：{dt}\n"
+                )
+        except Exception as e:
+            result_text += f"[port2] 数据解析失败：{e}\n"
+    else:
+        result_text += "未找到太阳能发电数据文件（port2）\n"
+
+    # 写入缓存文件
+    result = {
+        "text": result_text.strip(),
+        "daily_energy": daily_energy,
+        "plot_url": "",  # 可选：用于图表数据的 Base64 图像
+    }
+
+    os.makedirs("cache", exist_ok=True)
+    with open(os.path.join("cache", f"{date_str}.json"), 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+
+    return result
 
 @app.route('/')
 def index():
@@ -137,12 +201,58 @@ def get_data():
 
 @app.route('/get_summary')
 def get_summary():
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+
+    # ✅ 如果提供了时间范围参数，就走“区间统计”逻辑
+    if start_date and end_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+            def get_range_dates(start, end):
+                return [(start + timedelta(days=i)).strftime('%Y-%m-%d')
+                        for i in range((end - start).days + 1)]
+
+            def sum_energy(dates):
+                total_kwh = 0
+                total_solar = 0
+                for date in dates:
+                    cache_file = os.path.join('cache', f"{date}.json")
+                    if os.path.exists(cache_file):
+                        try:
+                            with open(cache_file, 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                                text = data.get("text", "")
+                                if "总用电量" in text:
+                                    for line in text.splitlines():
+                                        if "总用电量" in line:
+                                            total_kwh += float(line.split("：")[-1].split()[0])
+                                if "当日发电量" in text:
+                                    for line in text.splitlines():
+                                        if "当日发电量" in line:
+                                            total_solar += float(line.split("：")[-1].split()[0])
+                        except:
+                            pass
+                return total_kwh, total_solar
+
+            date_list = get_range_dates(start_dt, end_dt)
+            kwh, solar = sum_energy(date_list)
+            return jsonify({
+                "total_kwh": round(kwh, 2),
+                "total_solar": round(solar, 2)
+            })
+
+        except Exception as e:
+            return jsonify({"error": f"时间范围解析失败: {e}"}), 400
+
+
     try:
         today = datetime.today().date()
         today_str = today.strftime('%Y-%m-%d')
         summary_cache_path = os.path.join('summary_cache', f"{today_str}.json")
 
-        # ✅ 优先使用当天汇总缓存
+        # ✅ 如果缓存已存在，直接返回
         if os.path.exists(summary_cache_path):
             try:
                 with open(summary_cache_path, 'r', encoding='utf-8') as f:
@@ -150,10 +260,12 @@ def get_summary():
             except Exception as e:
                 print(f"[get_summary] 读取缓存失败：{e}")
 
-        # ✅ 如果没有缓存，就退回原有逻辑
-        start_of_month = today.replace(day=1)
-        start_of_year = today.replace(month=1, day=1)
-        end_date = today - timedelta(days=1)  # 当前日不统计
+        # ✅ 缓存不存在时，立即补算“到昨天为止”的数据并缓存
+        print("[get_summary] 首次访问，无缓存，正在即时生成...")
+
+        yesterday = today - timedelta(days=1)
+        start_of_month = yesterday.replace(day=1)
+        start_of_year = yesterday.replace(month=1, day=1)
 
         def get_range_dates(start, end):
             return [(start + timedelta(days=i)).strftime('%Y-%m-%d')
@@ -164,37 +276,43 @@ def get_summary():
             total_kwh = 0
             total_solar = 0
             for date in dates:
-                base = f"[192.168.1.254] {date}"
-                file1 = os.path.join(DATA_DIR, base + "-port1.txt")
-                file2 = os.path.join(DATA_DIR, base + "-port2.txt")
-                if os.path.exists(file1):
+                cache_file = os.path.join('cache', f"{date}.json")
+                if os.path.exists(cache_file):
                     try:
-                        result = extract_and_calculate(file1)
-                        total_kwh += result.get("total_kwh", 0)
-                    except:
-                        pass
-                if os.path.exists(file2):
-                    try:
-                        parsed = parse_modbus_data(file2)
-                        if parsed:
-                            total_solar += parsed[-1][1]
+                        with open(cache_file, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            text = data.get("text", "")
+                            if "总用电量" in text:
+                                for line in text.splitlines():
+                                    if "总用电量" in line:
+                                        total_kwh += float(line.split("：")[-1].split()[0])
+                            if "当日发电量" in text:
+                                for line in text.splitlines():
+                                    if "当日发电量" in line:
+                                        total_solar += float(line.split("：")[-1].split()[0])
                     except:
                         pass
             return total_kwh, total_solar
 
-        m_kwh, m_solar = sum_energy(start_of_month, end_date)
-        y_kwh, y_solar = sum_energy(start_of_year, end_date)
+        m_kwh, m_solar = sum_energy(start_of_month, yesterday)
+        y_kwh, y_solar = sum_energy(start_of_year, yesterday)
 
-        print(f"月电：{m_kwh:.2f} kWh，年电：{y_kwh:.2f} kWh，月太阳：{m_solar:.2f} kWh，年太阳：{y_solar:.2f} kWh")
-
-        return jsonify({
+        result = {
             "monthly_kwh": round(m_kwh, 2),
             "monthly_solar": round(m_solar, 2),
             "yearly_kwh": round(y_kwh, 2),
             "yearly_solar": round(y_solar, 2),
-        })
+        }
+
+        os.makedirs("summary_cache", exist_ok=True)
+        with open(summary_cache_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+        return jsonify(result)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 def generate_yesterday_cache():
@@ -339,6 +457,46 @@ def generate_yesterday_summary():
     except Exception as e:
         print(f"[定时任务] 写入 summary 缓存失败：{e}")
 
+def generate_all_cache():
+    print("[初始化] 正在批量缓存 C:\\csgatewaynew20241104\\log 目录下所有数据文件...")
+
+    log_dir = r"C:\csgatewaynew20241104\log"
+    if not os.path.exists(log_dir):
+        print("❌ log 目录不存在")
+        return
+
+    cache_dir = os.path.join(os.getcwd(), "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+
+    all_files = sorted(os.listdir(log_dir))
+    date_set = set()
+
+    # ✅ 收集所有合法的日期（自动过滤非法文件）
+    for file in all_files:
+        if file.startswith("[192.168.1.254] ") and "-port" in file:
+            match = re.search(r"\[192\.168\.1\.254\] (\d{4}-\d{2}-\d{2})-port\d", file)
+            if match:
+                date_part = match.group(1)
+                date_set.add(date_part)
+
+    print(f"[扫描完成] 共发现 {len(date_set)} 个独立日期")
+
+    # ✅ 按日期处理缓存
+    for date_str in sorted(date_set):
+        cache_path = os.path.join(cache_dir, f"{date_str}.json")
+        if os.path.exists(cache_path):
+            print(f"✅ 已存在缓存：{date_str}")
+            continue
+
+        try:
+            _ = get_combined_result_for_date(date_str)
+            print(f"✅ 已生成缓存：{date_str}")
+        except Exception as e:
+            print(f"❌ 缓存失败：{date_str} - {e}")
+
+
+
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(generate_yesterday_cache, CronTrigger(hour=3, minute=0))
 scheduler.add_job(generate_yesterday_summary, CronTrigger(hour=2, minute=0))
@@ -346,5 +504,8 @@ scheduler.start()
 
 
 if __name__ == '__main__':
+    generate_all_cache()
+    ##generate_yesterday_summary()
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
