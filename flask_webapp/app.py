@@ -139,6 +139,18 @@ def get_data():
 def get_summary():
     try:
         today = datetime.today().date()
+        today_str = today.strftime('%Y-%m-%d')
+        summary_cache_path = os.path.join('summary_cache', f"{today_str}.json")
+
+        # ✅ 优先使用当天汇总缓存
+        if os.path.exists(summary_cache_path):
+            try:
+                with open(summary_cache_path, 'r', encoding='utf-8') as f:
+                    return jsonify(json.load(f))
+            except Exception as e:
+                print(f"[get_summary] 读取缓存失败：{e}")
+
+        # ✅ 如果没有缓存，就退回原有逻辑
         start_of_month = today.replace(day=1)
         start_of_year = today.replace(month=1, day=1)
         end_date = today - timedelta(days=1)  # 当前日不统计
@@ -165,7 +177,7 @@ def get_summary():
                     try:
                         parsed = parse_modbus_data(file2)
                         if parsed:
-                            total_solar += parsed[-1][1]  # daily_energy
+                            total_solar += parsed[-1][1]
                     except:
                         pass
             return total_kwh, total_solar
@@ -173,7 +185,6 @@ def get_summary():
         m_kwh, m_solar = sum_energy(start_of_month, end_date)
         y_kwh, y_solar = sum_energy(start_of_year, end_date)
 
-        # ✅ 打印调试用
         print(f"月电：{m_kwh:.2f} kWh，年电：{y_kwh:.2f} kWh，月太阳：{m_solar:.2f} kWh，年太阳：{y_solar:.2f} kWh")
 
         return jsonify({
@@ -184,6 +195,7 @@ def get_summary():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 def generate_yesterday_cache():
     from datetime import datetime, timedelta
@@ -271,9 +283,67 @@ def generate_yesterday_cache():
         print(f"[定时任务] 缓存文件 {cache_file} 写入成功")
     except Exception as e:
         print(f"[定时任务] 写入缓存失败：{e}")
+
+def generate_yesterday_summary():
+    print("[定时任务] 正在生成 summary 汇总缓存...")
+
+    today = datetime.today().date()
+    yesterday = today - timedelta(days=1)
+    start_of_month = yesterday.replace(day=1)
+    start_of_year = yesterday.replace(month=1, day=1)
+
+    def get_range_dates(start, end):
+        return [(start + timedelta(days=i)).strftime('%Y-%m-%d')
+                for i in range((end - start).days + 1)]
+
+    def sum_energy(from_date, to_date):
+        dates = get_range_dates(from_date, to_date)
+        total_kwh = 0
+        total_solar = 0
+        for date in dates:
+            cache_file = os.path.join('cache', f"{date}.json")
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        text = data.get("text", "")
+                        if "总用电量" in text:
+                            for line in text.splitlines():
+                                if "总用电量" in line:
+                                    total_kwh += float(line.split("：")[-1].split()[0])
+                        if "当日发电量" in text:
+                            for line in text.splitlines():
+                                if "当日发电量" in line:
+                                    total_solar += float(line.split("：")[-1].split()[0])
+                    continue
+                except:
+                    pass
+        return total_kwh, total_solar
+
+    m_kwh, m_solar = sum_energy(start_of_month, yesterday)
+    y_kwh, y_solar = sum_energy(start_of_year, yesterday)
+
+    result = {
+        "monthly_kwh": round(m_kwh, 2),
+        "monthly_solar": round(m_solar, 2),
+        "yearly_kwh": round(y_kwh, 2),
+        "yearly_solar": round(y_solar, 2),
+    }
+
+    os.makedirs("summary_cache", exist_ok=True)
+    cache_file = os.path.join("summary_cache", f"{today.strftime('%Y-%m-%d')}.json")
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        print(f"[定时任务] 已生成 summary 汇总缓存：{cache_file}")
+    except Exception as e:
+        print(f"[定时任务] 写入 summary 缓存失败：{e}")
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(generate_yesterday_cache, CronTrigger(hour=3, minute=0))
+scheduler.add_job(generate_yesterday_summary, CronTrigger(hour=2, minute=0))
 scheduler.start()
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
