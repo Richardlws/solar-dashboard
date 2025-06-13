@@ -237,12 +237,22 @@
                             let text = data.text || '(未查到数据)';
                             if (typeof data.daily_energy === 'number') {
                                 const lines = text.split('\n');
-                                const index = lines.findIndex(line => line.startsWith("结束时间："));
-                                if (index !== -1) {
-                                    lines.splice(index + 1, 0, `当日发电量：${data.daily_energy.toFixed(1)} kWh`);
+
+                                // 防止重复插入
+                                if (!lines.some(line => line.includes('当日发电量：'))) {
+                                    const solarStart = lines.findIndex(line => line.includes('🔆 太阳能发电'));
+                                    if (solarStart !== -1) {
+                                        for (let i = solarStart + 1; i < lines.length; i++) {
+                                            if (lines[i].startsWith('结束时间：')) {
+                                                lines.splice(i + 1, 0, `当日发电量：${data.daily_energy.toFixed(1)} kWh`);
+                                                break;
+                                            }
+                                        }
+                                    }
                                     text = lines.join('\n');
                                 }
                             }
+
 
                             dataContent.innerText = text;
                             if (data.plot_url) {
