@@ -56,16 +56,22 @@ def get_combined_result_for_date(date_str):
         try:
             data2 = parse_modbus_data(path2)
             if data2:
-                latest = max(data2, key=lambda x: x[0])
-                dt, day_kwh, total_kwh, max_power = latest
+                # 按最大功率值排序，取 max_power 最大的那条记录
+                max_power_entry = max(data2, key=lambda x: x[3])  # x[3] 是 max_power
+                max_time, day_kwh, total_kwh, max_power = max_power_entry
+
+                latest_entry = max(data2, key=lambda x: x[0])
+                latest_time = latest_entry[0]  # 最新数据点时间
+
                 result_text += (
                     f"\n🔆 太阳能发电\n"
-                    f"结束时间：{dt}\n"
+                    f"结束时间：{latest_time}\n"
                     f"当日发电量：{day_kwh:.1f} kWh\n"
                     f"装机后总发电量：{total_kwh / 100:.2f} kWh\n"
                     f"当日最大功率：{max_power:.3f} kW\n"
-                    f"最大功率时间：{dt}\n"
+                    f"最大功率时间：{max_time}\n"
                 )
+
         except Exception as e:
             result_text += f"[port2] 数据解析失败：{e}\n"
     else:
