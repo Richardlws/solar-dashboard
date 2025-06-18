@@ -1,4 +1,3 @@
-import pickle
 import time
 from datetime import datetime
 from selenium import webdriver
@@ -12,36 +11,12 @@ TO = '徐州东'
 # 日期：今天
 today_str = datetime.today().strftime('%Y-%m-%d')
 
-# Cookie 文件名
-COOKIE_FILE = '12306_cookies.pkl'
-
 # 初始化 Chrome 浏览器
 def init_browser():
     options = webdriver.ChromeOptions()
     options.add_argument('--start-maximized')
     driver = webdriver.Chrome(options=options)
     return driver
-
-# 保存 cookie
-def save_cookie(driver):
-    cookies = driver.get_cookies()
-    with open(COOKIE_FILE, "wb") as f:
-        pickle.dump(cookies, f)
-    print("✅ Cookie 已保存，下次可自动登录")
-
-# 加载 cookie 实现自动登录
-def load_cookie(driver):
-    driver.get("https://kyfw.12306.cn/otn/view/index.html")
-    with open(COOKIE_FILE, "rb") as f:
-        cookies = pickle.load(f)
-        for cookie in cookies:
-            driver.add_cookie(cookie)
-    driver.refresh()
-    time.sleep(2)
-    if "我的12306" in driver.page_source:
-        print("✅ 自动登录成功")
-    else:
-        print("⚠️ Cookie 登录失败，请删除 cookie 文件后重新扫码")
 
 # 手动扫码登录流程
 def manual_login(driver):
@@ -50,7 +25,6 @@ def manual_login(driver):
     while True:
         if "我的12306" in driver.page_source:
             print("✅ 登录成功！")
-            save_cookie(driver)
             break
         time.sleep(1)
 
@@ -101,22 +75,17 @@ def search_ticket(driver):
             print("⚠️ 报错：", e)
 
     print("📝 请手动选择乘客（刘冰）并提交订单，浏览器将保持打开状态")
-    input("👉 完成抢票后按 Enter 关闭程序（或直接关闭窗口）")
+    input("👉 抢票完成后按 Enter 关闭程序，或手动关闭窗口")
 
 if __name__ == '__main__':
     driver = init_browser()
 
     try:
-        # 尝试自动登录
-        try:
-            load_cookie(driver)
-        except:
-            manual_login(driver)
-
+        manual_login(driver)
         search_ticket(driver)
 
     except Exception as e:
         print("❌ 程序出错：", e)
 
-    # 不自动关闭浏览器
+    # ❗不要关闭浏览器
     # driver.quit()
