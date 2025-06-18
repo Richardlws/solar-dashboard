@@ -1,4 +1,5 @@
 import time
+import requests
 from datetime import datetime,timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -10,6 +11,23 @@ TO = '徐州东'
 
 # 日期：今天
 today_str = datetime.today().strftime('%Y-%m-%d')
+
+def notify_wechat(message):
+    send_key = 'SCT283223TRuHmdYrTyKtlnAqlLX0fYfAD'
+    url = f'https://sctapi.ftqq.com/{send_key}.send'
+    data = {
+        'title': '🎉 抢票成功通知',
+        'desp': message
+    }
+    try:
+        res = requests.post(url, data=data)
+        if res.status_code == 200:
+            print("✅ 已推送微信提醒")
+        else:
+            print("⚠️ 推送失败，响应码：", res.status_code)
+    except Exception as e:
+        print("⚠️ 微信提醒失败：", e)
+
 
 # 初始化 Chrome 浏览器
 def init_browser():
@@ -90,6 +108,8 @@ def search_ticket(driver):
                     if reserve_button:
                         print(f"🎯 发现可预订车次，发车时间：{start_time_str}，正在点击...")
                         reserve_button.click()
+                        notify_wechat(f"🚄 成功抢到 {FROM} → {TO} 的票！发车时间：{start_time_str}，请立即进入订单页面完成提交并支付。")
+
                         found = True
                         break
 
