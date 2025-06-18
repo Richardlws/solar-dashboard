@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime,timedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -60,22 +60,51 @@ def search_ticket(driver):
     print(f"🎯 查询 {FROM} → {TO} 的高铁票（{today_str}）...")
 
     # 刷票循环
+    from datetime import datetime, timedelta
+
+    # 刷票循环
     while True:
         time.sleep(0.8)
         try:
-            reserve_buttons = driver.find_elements(By.XPATH, "//a[text()='预订']")
-            if reserve_buttons:
-                print("🎉 抢到票啦！点击预订中...")
-                reserve_buttons[0].click()
+            train_rows = driver.find_elements(By.XPATH, "//tbody[@id='queryLeftTable']/tr[not(@datatran)]")
+
+            found = False
+            for row in train_rows:
+                try:
+                    # 发车时间列（出发时间一般在 <td class="start-t"> 标签中）
+                    start_time_str = row.find_element(By.CLASS_NAME, "start-t").text.strip()
+                    if not start_time_str:
+                        continue
+
+                    # 转为 datetime 格式（今天的某个时间）
+                    start_time = datetime.strptime(today_str + " " + start_time_str, "%Y-%m-%d %H:%M")
+                    now = datetime.now()
+
+                    # 如果发车时间距离现在少于 4 小时，跳过
+                    if start_time - now < timedelta(hours=4):
+                        print(f"⏩ 跳过 {start_time_str} 的车次（小于4小时）")
+                        continue
+
+                    # 找“预订”按钮并点击
+                    reserve_button = row.find_element(By.XPATH, ".//a[text()='预订']")
+                    if reserve_button:
+                        print(f"🎯 发现可预订车次，发车时间：{start_time_str}，正在点击...")
+                        reserve_button.click()
+                        found = True
+                        break
+
+                except Exception as inner_e:
+                    continue
+
+            if found:
                 break
             else:
-                print("🔄 刷新中，未发现余票")
+                print("🔄 未找到合适车次，继续刷新...")
                 driver.find_element(By.ID, "query_ticket").click()
+
         except Exception as e:
             print("⚠️ 报错：", e)
 
-    print("📝 请手动选择乘客（刘冰）并提交订单，浏览器将保持打开状态")
-    input("👉 抢票完成后按 Enter 关闭程序，或手动关闭窗口")
 
 if __name__ == '__main__':
     driver = init_browser()
