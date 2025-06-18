@@ -45,6 +45,9 @@ def manual_login(driver):
     while True:
         if "我的12306" in driver.page_source:
             print("✅ 登录成功！")
+            # 登录成功后最小化窗口
+            driver.minimize_window()
+
             break
         time.sleep(1)
 
