@@ -112,9 +112,11 @@ if __name__ == '__main__':
     try:
         manual_login(driver)
         search_ticket(driver)
-
     except Exception as e:
         print("❌ 程序出错：", e)
+
+    input("👉 抢票完成后按 Enter 关闭程序，或手动关闭窗口")
+
 
     # ❗不要关闭浏览器
     # driver.quit()
