@@ -1,32 +1,39 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 import time
 import pandas as pd
 
-# 初始化浏览器
-driver = webdriver.Chrome()
+# 设置浏览器无头模式（可选）
+chrome_options = Options()
+# chrome_options.add_argument("--headless")  # 如需可视化运行，请注释掉这一行
+
+driver = webdriver.Chrome(options=chrome_options)
 driver.get("https://www.lagou.com/")
 
-# 搜索关键词
+time.sleep(3)
+
+# 搜索“后端 实习”
 keyword = "后端 实习"
 city = "北京"
-
-# 模拟搜索
 driver.get(f"https://www.lagou.com/jobs/list_{keyword}?city={city}")
 time.sleep(5)
 
-jobs = []
+job_list = []
 
-for i in range(1, 4):  # 爬3页
-    print(f"正在爬第 {i} 页")
+# 多页爬取
+for page in range(1, 3):  # 示例：爬前2页
+    print(f"📄 第 {page} 页")
+    time.sleep(3)
     job_cards = driver.find_elements(By.CLASS_NAME, 'list__item__wrap')
-    for job in job_cards:
+
+    for card in job_cards:
         try:
-            title = job.find_element(By.CLASS_NAME, "p-top__1").text
-            salary = job.find_element(By.CLASS_NAME, "p-bom__1").text
-            company = job.find_element(By.CLASS_NAME, "company__2A8S").text
-            detail = job.find_element(By.CLASS_NAME, "p-bom__2").text
-            jobs.append({
+            title = card.find_element(By.CLASS_NAME, "p-top__1").text
+            company = card.find_element(By.CLASS_NAME, "company__2A8S").text
+            salary = card.find_element(By.CLASS_NAME, "p-bom__1").text
+            detail = card.find_element(By.CLASS_NAME, "p-bom__2").text
+            job_list.append({
                 "岗位": title,
                 "公司": company,
                 "薪资": salary,
@@ -34,19 +41,18 @@ for i in range(1, 4):  # 爬3页
             })
         except:
             continue
+
     try:
-        next_button = driver.find_element(By.CLASS_NAME, 'pager_next')
-        if "disabled" in next_button.get_attribute("class"):
+        next_btn = driver.find_element(By.CLASS_NAME, 'pager_next')
+        if "disabled" in next_btn.get_attribute("class"):
             break
-        else:
-            next_button.click()
-            time.sleep(3)
+        next_btn.click()
     except:
         break
 
 driver.quit()
 
-# 输出结果
-df = pd.DataFrame(jobs)
-df.to_excel("拉勾实习岗位.xlsx", index=False)
-print("✅ 爬取完成，数据已保存为 Excel。")
+# 保存数据
+df = pd.DataFrame(job_list)
+df.to_excel("lagou_jobs.xlsx", index=False)
+print("✅ 已保存职位到 lagou_jobs.xlsx，共爬取", len(df), "条")
