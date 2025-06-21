@@ -319,6 +319,80 @@ def get_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 在 app.py 中添加以下新接口（建议加在文件末尾）
+from flask import request
+
+@app.route('/get_hourly_summary')
+def get_hourly_summary():
+    try:
+        from datetime import datetime, timedelta
+        start_str = request.args.get('start')
+        end_str = request.args.get('end')
+
+        if not start_str or not end_str:
+            return jsonify({'error': '缺少 start 或 end 参数'}), 400
+
+        start_dt = datetime.strptime(start_str, "%Y-%m-%d %H:%M")
+        end_dt = datetime.strptime(end_str, "%Y-%m-%d %H:%M")
+        if start_dt > end_dt:
+            return jsonify({'error': '起始时间不能晚于结束时间'}), 400
+
+        # 获取所有涉及的日期（跨天支持）
+        def get_involved_dates(start, end):
+            days = (end.date() - start.date()).days
+            return [(start.date() + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(days + 1)]
+
+        date_list = get_involved_dates(start_dt, end_dt)
+
+        total_kwh = 0.0
+        total_solar = 0.0
+
+        for date_str in date_list:
+            base = f"[192.168.1.254] {date_str}"
+            file1 = os.path.join(DATA_DIR, base + "-port1.txt")
+            file2 = os.path.join(DATA_DIR, base + "-port2.txt")
+
+            # 电网用电（port1）
+            if os.path.exists(file1):
+                try:
+                    result = extract_and_calculate(file1)
+                    interval = result.get('sampling_interval_seconds')
+                    count = result.get('swapped_segments')
+                    start_time = result.get('start time')
+
+                    if interval and count and start_time:
+                        for i in range(count):
+                            t = start_time + timedelta(seconds=i * interval)
+                            if start_dt <= t <= end_dt:
+                                if i < result['records_normal']:
+                                    kw = result['total_normal'] / result['records_normal'] / 10000 * 30
+                                    total_kwh += kw * interval / 3600
+                                else:
+                                    kw = result['special_sum'] / result['records_80'] / 10000 * 30 if result['records_80'] else 0
+                                    total_kwh += kw * interval / 3600
+                except Exception as e:
+                    print(f"[port1] 错误: {e}")
+
+            # 太阳能发电（port2）
+            if os.path.exists(file2):
+                try:
+                    rows = parse_modbus_data(file2)
+                    for row in rows:
+                        ts = row[0]
+                        if start_dt <= ts <= end_dt:
+                            # 只算 total_power 值（kW），推估 1s 或 0.5s 采样时间（这里默认 5min 间隔）
+                            total_solar += row[3] * 300 / 3600  # 估算每条记录代表 5 分钟（300秒）
+                except Exception as e:
+                    print(f"[port2] 错误: {e}")
+
+        return jsonify({
+            'total_kwh': round(total_kwh, 3),
+            'total_solar': round(total_solar, 3)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 
 def generate_yesterday_cache():
