@@ -172,7 +172,7 @@
             <span id="monthly-solar">本月发电量（太阳能）：-</span>
             <span id="yearly-solar">本年发电量（太阳能）：-</span>
             <div class="range-box">
-              <div class="range-title">🔍 查询时间范围</div>
+              <div class="range-title">🔍 按日期汇总查询</div>
               <div class="range-controls">
                 <input type="text" id="start-date" placeholder="起始日期">
                 <span class="to-text">到</span>
@@ -181,6 +181,18 @@
               </div>
               <div id="range-summary" class="range-result"></div>
             </div>
+            <!-- ⏰ 按小时段查询 -->
+            <div class="range-box">
+              <div class="range-title">⏰ 按小时段查询</div>
+              <div class="range-controls">
+                <input type="text" id="start-datetime" placeholder="起始时间">
+                <span class="to-text">到</span>
+                <input type="text" id="end-datetime" placeholder="结束时间">
+                <button onclick="fetchHourSummary()">查询</button>
+              </div>
+              <div id="hour-summary" class="range-result"></div>
+            </div>
+
 
             <div id="range-summary" style="margin-top: 10px;"></div>
         </div>
@@ -189,6 +201,8 @@
     <script>
         flatpickr("#start-date", { dateFormat: "Y-m-d" });
         flatpickr("#end-date", { dateFormat: "Y-m-d" });
+        flatpickr("#start-datetime", { enableTime: true, dateFormat: "Y-m-d H:i" });
+        flatpickr("#end-datetime", { enableTime: true, dateFormat: "Y-m-d H:i" });
 
             // 自动汇总函数
         function fetchAutoSummary() {
@@ -219,6 +233,22 @@
                     document.getElementById('range-summary').innerText = '汇总获取失败';
                 });
         }
+        function fetchHourSummary() {
+            const start = document.getElementById('start-datetime').value;
+            const end = document.getElementById('end-datetime').value;
+            if (!start || !end) return;
+
+            axios.get(`/get_summary?start_time=${encodeURIComponent(start)}&end_time=${encodeURIComponent(end)}`)
+                .then(res => {
+                    const data = res.data;
+                    document.getElementById('hour-summary').innerText =
+                        `时段总用电量：${data.total_kwh || 0} kWh\n时段总发电量：${data.total_solar || 0} kWh`;
+                })
+                .catch(() => {
+                    document.getElementById('hour-summary').innerText = '获取失败';
+                });
+        }
+
 
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
