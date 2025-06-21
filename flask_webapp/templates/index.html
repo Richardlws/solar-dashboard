@@ -192,17 +192,14 @@
               </div>
               <div id="hour-summary" class="range-result"></div>
             </div>
-
-
-            <div id="range-summary" style="margin-top: 10px;"></div>
         </div>
     </div>
 
     <script>
         flatpickr("#start-date", { dateFormat: "Y-m-d" });
         flatpickr("#end-date", { dateFormat: "Y-m-d" });
-        flatpickr("#start-datetime", { enableTime: true, dateFormat: "Y-m-d H:i" });
-        flatpickr("#end-datetime", { enableTime: true, dateFormat: "Y-m-d H:i" });
+        flatpickr("#start-datetime", { enableTime: true, dateFormat: "Y-m-d H:i",time_24hr:true});
+        flatpickr("#end-datetime", { enableTime: true, dateFormat: "Y-m-d H:i",time_24hr:true });
 
             // 自动汇总函数
         function fetchAutoSummary() {
