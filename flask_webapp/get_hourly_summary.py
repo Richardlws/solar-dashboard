@@ -31,8 +31,8 @@ def get_hourly_summary():
             lines = f.readlines()
 
         current_time = None
-        sample_debug = []
-        b3_debug = []
+        # sample_debug = []
+        # b3_debug = []
         for i, line in enumerate(lines):
             if '接收' in line and re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line):
                 time_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line)
@@ -46,8 +46,8 @@ def get_hourly_summary():
                         if len(raw_data) == 6:
                             try:
                                 if raw_data[4:6].upper() == 'B3':
-                                    if len(b3_debug) < 3:
-                                        b3_debug.append(current_time.strftime('%H:%M:%S.%f'))
+                                    # if len(b3_debug) < 3:
+                                    #    b3_debug.append(current_time.strftime('%H:%M:%S.%f'))
                                     continue
                                 a, b, c = raw_data[0:2], raw_data[2:4], raw_data[4:6]
 
@@ -60,8 +60,8 @@ def get_hourly_summary():
                                 v2 = decode_byte(b)
                                 v3 = decode_byte(a)
                                 val = int(f"{v1:02d}{v2:02d}{v3:02d}") / 10000 * 30
-                                if len(sample_debug) < 3:
-                                    sample_debug.append({'time': current_time.strftime('%H:%M:%S.%f'), 'val': val})
+                                # if len(sample_debug) < 3:
+                                #    sample_debug.append({'time': current_time.strftime('%H:%M:%S.%f'), 'val': val})
                                 total_kw += val
                                 timestamps.append(current_time)
                             except:
@@ -75,9 +75,9 @@ def get_hourly_summary():
         else:
             interval = 0.5
 
-        print(f"📋 Port1 前三条样本: {sample_debug}")
-        print(f"🟦 B3 开头帧前3个时间点: {b3_debug}")
-        return total_kw * interval / 3600
+        # print(f"📋 Port1 前三条样本: {sample_debug}")
+        # print(f"🟦 B3 开头帧前3个时间点: {b3_debug}")
+        return round(total_kw * interval / 3600,1)
 
     def parse_port2(file_path):
         total_kwh = 0
