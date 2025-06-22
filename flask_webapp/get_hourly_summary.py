@@ -6,6 +6,8 @@ import os
 from app import DATA_DIR
 
 app = Flask(__name__)
+
+
 @app.route('/get_hourly_summary')
 def get_hourly_summary():
     start_str = request.args.get('start')
@@ -42,9 +44,10 @@ def get_hourly_summary():
                         raw_data = hex_str[idx + 8:idx + 14]
                         if len(raw_data) == 6:
                             try:
-                                if raw_data.startswith('80'):
+                                if raw_data.startswith('B3'):
                                     continue
                                 a, b, c = raw_data[0:2], raw_data[2:4], raw_data[4:6]
+
                                 def decode_byte(byte_hex):
                                     high = int(byte_hex[0], 16) - 3
                                     low = int(byte_hex[1], 16) - 3
@@ -64,6 +67,8 @@ def get_hourly_summary():
         if len(timestamps) >= 2:
             duration = (timestamps[-1] - timestamps[0]).total_seconds()
             interval = duration / (len(timestamps) - 1)
+            print(duration)
+            print(interval)
         else:
             interval = 0.5
 
@@ -129,9 +134,10 @@ def get_hourly_summary():
         'total_solar': round(total_solar, 3)
     })
 
+
 if __name__ == '__main__':
     # 手动测试用例
     from types import SimpleNamespace
 
-    with app.test_request_context('/get_hourly_summary?start=2025-06-18 00:00&end=2025-06-18 23:59'):
+    with app.test_request_context('/get_hourly_summary?start=2025-06-17 00:00&end=2025-06-17 23:59'):
         print(get_hourly_summary().get_json())
