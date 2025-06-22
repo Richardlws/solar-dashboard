@@ -5,7 +5,7 @@ import re
 import os
 from app import DATA_DIR
 
-
+app = Flask(__name__)
 @app.route('/get_hourly_summary')
 def get_hourly_summary():
     start_str = request.args.get('start')
@@ -119,3 +119,10 @@ def get_hourly_summary():
         'total_kwh': round(total_kwh, 3),
         'total_solar': round(total_solar, 3)
     })
+
+if __name__ == '__main__':
+    # 手动测试用例
+    from types import SimpleNamespace
+
+    with app.test_request_context('/get_hourly_summary?start=2025-06-09 00:00&end=2025-06-09 04:00'):
+        print(get_hourly_summary().get_json())
