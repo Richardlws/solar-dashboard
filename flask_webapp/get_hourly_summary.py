@@ -77,33 +77,67 @@ def get_hourly_summary():
 
         # print(f"📋 Port1 前三条样本: {sample_debug}")
         # print(f"🟦 B3 开头帧前3个时间点: {b3_debug}")
-        return round(total_kw * interval / 3600,1)
+        return round(total_kw * interval / 3600, 1)
 
     def parse_port2(file_path):
         total_kwh = 0
         timestamps = []
         power_values = []
 
-        with open(file_path, 'r', encoding='gbk', errors='ignore') as f:
-            content = f.read()
+        try:
+            with open(file_path, 'r', encoding='gbk', errors='ignore') as f:
+                lines = f.readlines()
+        except:
+            return 0
 
-        pattern = re.compile(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)[\s\S]{0,200}?0000:((?:[0-9A-Fa-f]{2} ?)+)')
-        for match in pattern.finditer(content):
-            ts_str, hex_line = match.groups()
-            try:
-                ts = datetime.strptime(ts_str.strip(), "%Y-%m-%d %H:%M:%S.%f")
-                if not (start_dt <= ts <= end_dt):
+        grouped_frames = []
+        current_frame = []
+        current_timestamp = ""
+        collecting = False
+
+        for line in lines:
+            line = line.strip()
+            if re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}", line):
+                current_timestamp = re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}", line).group(0)
+            if "01 04 46" in line:
+                if collecting and current_frame:
+                    grouped_frames.append((current_timestamp, current_frame))
+                    current_frame = []
+                collecting = True
+                current_frame = [line]
+            elif collecting and re.match(r"^\d{4}:", line):
+                current_frame.append(line)
+            elif collecting and line == "":
+                if current_frame:
+                    grouped_frames.append((current_timestamp, current_frame))
+                    current_frame = []
+                collecting = False
+        if collecting and current_frame:
+            grouped_frames.append((current_timestamp, current_frame))
+
+        def extract_bytes_from_text_frame(frame_lines):
+            hex_bytes = []
+            for line in frame_lines:
+                parts = line.split(":", 1)
+                if len(parts) != 2:
                     continue
-                hex_str = hex_line.replace(' ', '')
-                if hex_str.startswith('010446') and len(hex_str) >= 128:
-                    # byte_list[61,62,59,60] → offset = 122~124 + 124~126 + 118~120 + 120~122
-                    power_hex = hex_str[122:124] + hex_str[124:126] + hex_str[118:120] + hex_str[120:122]  # CDAB
-                    power_val = int(power_hex, 16)
-                    if power_val >= 0x80000000:
-                        power_val -= 0x100000000
-                    power_val *= 0.001  # W → kW
+                hex_part = parts[1].strip().split()
+                hex_bytes.extend(hex_part)
+            return hex_bytes
 
-                    power_values.append(power_val)
+        for timestamp, frame_lines in grouped_frames:
+            byte_list = extract_bytes_from_text_frame(frame_lines)
+            if len(byte_list) < 75:
+                continue
+            try:
+                total_power = int(byte_list[61] + byte_list[62] + byte_list[59] + byte_list[60], 16)
+                if total_power >= 0x80000000:
+                    total_power -= 0x100000000
+                total_power *= 0.001  # W → kW
+
+                ts = datetime.strptime(timestamp.split('.')[0], "%Y-%m-%d %H:%M:%S")
+                if start_dt <= ts <= end_dt:
+                    power_values.append(total_power)
                     timestamps.append(ts)
             except:
                 continue
@@ -112,12 +146,12 @@ def get_hourly_summary():
             duration = (timestamps[-1] - timestamps[0]).total_seconds()
             interval = duration / (len(timestamps) - 1)
         else:
-            interval = 5  # 实测默认采样间隔约为 5 秒
+            interval = 5  # 默认间隔
 
         for val in power_values:
             total_kwh += val * interval / 3600
 
-        return round(total_kwh, 3)
+        return round(total_kwh, 2)
 
     date_strs = set()
     current = start_dt
@@ -139,8 +173,8 @@ def get_hourly_summary():
             total_solar += parse_port2(port2_path)
 
     return jsonify({
-        'total_kwh': round(total_kwh, 3),
-        'total_solar': round(total_solar, 3)
+        'total_kwh': round(total_kwh, 1),
+        'total_solar': round(total_solar, 1)
     })
 
 
