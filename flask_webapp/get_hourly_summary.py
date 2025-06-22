@@ -6,6 +6,8 @@ import os
 from app import DATA_DIR
 
 app = Flask(__name__)
+
+
 @app.route('/get_hourly_summary')
 def get_hourly_summary():
     start_str = request.args.get('start')
@@ -29,6 +31,7 @@ def get_hourly_summary():
             lines = f.readlines()
 
         current_time = None
+        sample_debug = []
         for i, line in enumerate(lines):
             if '接收' in line and re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line):
                 time_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line)
@@ -44,10 +47,13 @@ def get_hourly_summary():
                                 if raw_data.startswith('80'):
                                     continue
                                 a, b, c = raw_data[0:2], raw_data[2:4], raw_data[4:6]
-                                v1 = int(b, 16) - 0x33
-                                v2 = int(a, 16) - 0x33
-                                v3 = int(c, 16) - 0x33
-                                val = int(f"{v1:02d}{v2:02d}{v3:02d}")
+                                v1 = int(c, 16) - 0x33
+                                v2 = int(b, 16) - 0x33
+                                v3 = int(a, 16) - 0x33
+                                val = int(f"{v1:02d}{v2:02d}{v3:02d}") / 10000 * 30
+                                if len(sample_debug) < 3:
+                                    print(a, b, c)
+                                    sample_debug.append({'time': current_time.strftime('%H:%M:%S.%f'), 'val': val})
                                 total_kw += val
                                 timestamps.append(current_time)
                             except:
@@ -59,6 +65,7 @@ def get_hourly_summary():
         else:
             interval = 0.5
 
+        print(f"📋 Port1 前三条样本: {sample_debug}")
         return total_kw * interval / 3600
 
     def parse_port2(file_path):
@@ -120,9 +127,10 @@ def get_hourly_summary():
         'total_solar': round(total_solar, 3)
     })
 
+
 if __name__ == '__main__':
     # 手动测试用例
     from types import SimpleNamespace
 
-    with app.test_request_context('/get_hourly_summary?start=2025-06-17 00:00&end=2025-06-17 12:00'):
+    with app.test_request_context('/get_hourly_summary?start=2025-06-18 00:00&end=2025-06-18 23:59'):
         print(get_hourly_summary().get_json())
