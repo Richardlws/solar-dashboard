@@ -45,7 +45,7 @@ def get_hourly_summary():
                         raw_data = hex_str[idx + 8:idx + 14]
                         if len(raw_data) == 6:
                             try:
-                                if raw_data.startswith('B3'):
+                                if raw_data[4:6].upper() == 'B3':
                                     if len(b3_debug) < 3:
                                         b3_debug.append(current_time.strftime('%H:%M:%S.%f'))
                                     continue
@@ -143,5 +143,5 @@ if __name__ == '__main__':
     # 手动测试用例
     from types import SimpleNamespace
 
-    with app.test_request_context('/get_hourly_summary?start=2025-06-17 00:00&end=2025-06-17 23:59'):
+    with app.test_request_context('/get_hourly_summary?start=2025-06-18 00:00&end=2025-06-18 23:59'):
         print(get_hourly_summary().get_json())
