@@ -6,8 +6,6 @@ import os
 from app import DATA_DIR
 
 app = Flask(__name__)
-
-
 @app.route('/get_hourly_summary')
 def get_hourly_summary():
     start_str = request.args.get('start')
@@ -47,12 +45,16 @@ def get_hourly_summary():
                                 if raw_data.startswith('80'):
                                     continue
                                 a, b, c = raw_data[0:2], raw_data[2:4], raw_data[4:6]
-                                v1 = int(c, 16) - 0x33
-                                v2 = int(b, 16) - 0x33
-                                v3 = int(a, 16) - 0x33
+                                def decode_byte(byte_hex):
+                                    high = int(byte_hex[0], 16) - 3
+                                    low = int(byte_hex[1], 16) - 3
+                                    return int(f"{high}{low}")
+
+                                v1 = decode_byte(c)
+                                v2 = decode_byte(b)
+                                v3 = decode_byte(a)
                                 val = int(f"{v1:02d}{v2:02d}{v3:02d}") / 10000 * 30
                                 if len(sample_debug) < 3:
-                                    print(a, b, c)
                                     sample_debug.append({'time': current_time.strftime('%H:%M:%S.%f'), 'val': val})
                                 total_kw += val
                                 timestamps.append(current_time)
@@ -126,7 +128,6 @@ def get_hourly_summary():
         'total_kwh': round(total_kwh, 3),
         'total_solar': round(total_solar, 3)
     })
-
 
 if __name__ == '__main__':
     # 手动测试用例
