@@ -95,9 +95,14 @@ def get_hourly_summary():
                 if not (start_dt <= ts <= end_dt):
                     continue
                 hex_str = hex_line.replace(' ', '')
-                if hex_str.startswith('010446') and len(hex_str) >= 80:
-                    power_hex = hex_str[40:48]
-                    power_val = int(power_hex, 16) / 10.0
+                if hex_str.startswith('010446') and len(hex_str) >= 128:
+                    # byte_list[61,62,59,60] → offset = 122~124 + 124~126 + 118~120 + 120~122
+                    power_hex = hex_str[122:124] + hex_str[124:126] + hex_str[118:120] + hex_str[120:122]  # CDAB
+                    power_val = int(power_hex, 16)
+                    if power_val >= 0x80000000:
+                        power_val -= 0x100000000
+                    power_val *= 0.001  # W → kW
+
                     power_values.append(power_val)
                     timestamps.append(ts)
             except:
@@ -143,5 +148,5 @@ if __name__ == '__main__':
     # 手动测试用例
     from types import SimpleNamespace
 
-    with app.test_request_context('/get_hourly_summary?start=2025-06-18 00:00&end=2025-06-18 23:59'):
+    with app.test_request_context('/get_hourly_summary?start=2025-06-18 00:00&end=2025-06-18 08:30'):
         print(get_hourly_summary().get_json())
