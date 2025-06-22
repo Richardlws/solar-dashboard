@@ -32,6 +32,7 @@ def get_hourly_summary():
 
         current_time = None
         sample_debug = []
+        b3_debug = []
         for i, line in enumerate(lines):
             if '接收' in line and re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line):
                 time_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line)
@@ -45,6 +46,8 @@ def get_hourly_summary():
                         if len(raw_data) == 6:
                             try:
                                 if raw_data.startswith('B3'):
+                                    if len(b3_debug) < 3:
+                                        b3_debug.append(current_time.strftime('%H:%M:%S.%f'))
                                     continue
                                 a, b, c = raw_data[0:2], raw_data[2:4], raw_data[4:6]
 
@@ -67,12 +70,13 @@ def get_hourly_summary():
         if len(timestamps) >= 2:
             duration = (timestamps[-1] - timestamps[0]).total_seconds()
             interval = duration / (len(timestamps) - 1)
-            print(duration)
-            print(interval)
+            # print(duration)
+            # print(interval)
         else:
             interval = 0.5
 
         print(f"📋 Port1 前三条样本: {sample_debug}")
+        print(f"🟦 B3 开头帧前3个时间点: {b3_debug}")
         return total_kw * interval / 3600
 
     def parse_port2(file_path):
