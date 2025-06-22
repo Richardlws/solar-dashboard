@@ -25,7 +25,7 @@ def get_hourly_summary():
     def parse_port1(file_path):
         total_kw = 0
         timestamps = []
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='gbk', errors='ignore') as f:
             lines = f.readlines()
 
         current_time = None
@@ -66,7 +66,7 @@ def get_hourly_summary():
         timestamps = []
         power_values = []
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='gbk', errors='ignore') as f:
             content = f.read()
 
         pattern = re.compile(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)[\s\S]{0,200}?0000:((?:[0-9A-Fa-f]{2} ?)+)')
@@ -124,5 +124,5 @@ if __name__ == '__main__':
     # 手动测试用例
     from types import SimpleNamespace
 
-    with app.test_request_context('/get_hourly_summary?start=2025-06-09 00:00&end=2025-06-09 04:00'):
+    with app.test_request_context('/get_hourly_summary?start=2025-06-17 00:00&end=2025-06-17 12:00'):
         print(get_hourly_summary().get_json())
