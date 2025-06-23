@@ -10,8 +10,8 @@ app = Flask(__name__)
 
 @app.route('/get_hourly_summary')
 def get_hourly_summary():
-    start_str = request.args.get('start')
-    end_str = request.args.get('end')
+    start_str = request.args.get('start_time')
+    end_str = request.args.get('end_time')
 
     if not start_str or not end_str:
         return jsonify({'error': '缺少 start 或 end 参数'}), 400
