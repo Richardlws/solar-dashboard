@@ -643,7 +643,7 @@ def generate_all_cache():
     date_set = set()
 
     for filename in files:
-        if filename.startswith("[192.168.1.254]") and filename.endswith("port1.txt"):
+        if filename.startswith("[192.168.1.254] ") and filename.endswith("-port1.txt"):
             date_part = filename.split()[1]
             date_set.add(date_part)
 
@@ -727,6 +727,7 @@ def generate_all_cache():
 
         except Exception as e:
             print(f"⚠️ 生成 {date_str} 缓存失败：{e}")
+
 
 
 
