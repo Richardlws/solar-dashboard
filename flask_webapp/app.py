@@ -638,40 +638,98 @@ def generate_yesterday_summary():
 
 def generate_all_cache():
     print("[初始化] 正在批量缓存 C:\\csgatewaynew20241104\\log 目录下所有数据文件...")
-
-    log_dir = r"C:\csgatewaynew20241104\log"
-    if not os.path.exists(log_dir):
-        print("❌ log 目录不存在")
-        return
-
-    cache_dir = os.path.join(os.getcwd(), "cache")
-    os.makedirs(cache_dir, exist_ok=True)
-
-    all_files = sorted(os.listdir(log_dir))
+    log_dir = r"C:\\csgatewaynew20241104\\log"
+    files = os.listdir(log_dir)
     date_set = set()
 
-    # ✅ 收集所有合法的日期（自动过滤非法文件）
-    for file in all_files:
-        if file.startswith("[192.168.1.254] ") and "-port" in file:
-            match = re.search(r"\[192\.168\.1\.254\] (\d{4}-\d{2}-\d{2})-port\d", file)
-            if match:
-                date_part = match.group(1)
-                date_set.add(date_part)
+    for filename in files:
+        if filename.startswith("[192.168.1.254]") and filename.endswith("port1.txt"):
+            date_part = filename.split()[1]
+            date_set.add(date_part)
 
-    print(f"[扫描完成] 共发现 {len(date_set)} 个独立日期")
-
-    # ✅ 按日期处理缓存
     for date_str in sorted(date_set):
-        cache_path = os.path.join(cache_dir, f"{date_str}.json")
-        if os.path.exists(cache_path):
-            print(f"✅ 已存在缓存：{date_str}")
-            continue
-
         try:
-            _ = get_combined_result_for_date(date_str)
-            print(f"✅ 已生成缓存：{date_str}")
+            print(f"生成缓存：{date_str}")
+
+            base = f"[192.168.1.254] {date_str}"
+            file1 = os.path.join(log_dir, base + "-port1.txt")
+            file2 = os.path.join(log_dir, base + "-port2.txt")
+            cache_file = os.path.join('cache', f"{date_str}.json")
+
+            if not os.path.exists(file1) and not os.path.exists(file2):
+                print(f"[{date_str}] 无可用数据文件，跳过缓存生成。")
+                continue
+
+            output_lines = []
+            plot_url = ''
+            daily_energy = None
+
+            if os.path.exists(file1):
+                try:
+                    result = extract_and_calculate(file1)
+                    output_lines.append("📥 电网用电")
+                    if 'start time' in result:
+                        output_lines.append(f"开始时间：{result['start time'].strftime('%Y-%m-%d %H:%M:%S')}")
+                    if 'end time' in result:
+                        output_lines.append(f"结束时间：{result['end time'].strftime('%Y-%m-%d %H:%M:%S')}")
+                    if 'total_kwh' in result:
+                        output_lines.append(f"总用电量（付费电量）：{result['total_kwh']:.3f} kWh")
+                    if 'special_kwh' in result:
+                        output_lines.append(f"返送电网电量：{result['special_kwh']:.3f} kWh")
+                except Exception as e:
+                    output_lines.append(f"电网用电数据解析失败：{e}")
+
+            if os.path.exists(file2):
+                try:
+                    data = parse_modbus_data(file2)
+                    if data:
+                        last = data[-1]
+                        maxrow = max(data, key=lambda x: x[3])
+                        daily_energy = last[1]
+
+                        output_lines.append("\n🔆 太阳能发电")
+                        output_lines.append(f"结束时间：{last[0]}")
+                        output_lines.append(f"当日发电量：{daily_energy:.1f} kWh")
+                        output_lines.append(f"装机后总发电量：{last[2]:.2f} kWh")
+                        output_lines.append(f"当日最大功率：{maxrow[3]:.3f} kW")
+                        output_lines.append(f"最大功率时间：{maxrow[0]}")
+
+                        times = [x[0] for x in data]
+                        powers = [x[3] for x in data]
+                        plt.figure(figsize=(10, 4))
+                        plt.plot(times, powers)
+                        plt.title("太阳能发电功率曲线")
+                        plt.xlabel("时间")
+                        plt.ylabel("功率 (kW)")
+                        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H'))
+                        plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=1))
+                        plt.xticks(rotation=0)
+                        ymax = max(powers) if powers else 1
+                        plt.yticks(np.arange(0, int(ymax) + 2, 1))
+                        plot_path = os.path.join('static/plots', f"{date_str}.png")
+                        plt.tight_layout()
+                        plt.savefig(plot_path)
+                        plt.close()
+                        plot_url = '/' + plot_path.replace('\\', '/')
+                except Exception as e:
+                    output_lines.append(f"太阳能发电解析失败：{e}")
+
+            result_json = {
+                'text': '\n'.join(output_lines),
+                'plot_url': plot_url,
+            }
+            if daily_energy is not None:
+                result_json['daily_energy'] = daily_energy
+
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(result_json, f, ensure_ascii=False, indent=2)
+            print(f"缓存文件 {cache_file} 写入成功")
+
         except Exception as e:
-            print(f"❌ 缓存失败：{date_str} - {e}")
+            print(f"⚠️ 生成 {date_str} 缓存失败：{e}")
+
+
+
 
 
 
