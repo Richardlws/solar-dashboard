@@ -245,7 +245,7 @@
                 .then(res => {
                     const data = res.data;
                     document.getElementById('hour-summary').innerText =
-                        `时段总用电量：${data.total_kwh || 0} kWh\n时段总发电量：${data.total_solar || 0} kWh`;
+                        `时段总用电量：${data.hourly_kwh || 0} kWh\n时段总发电量：${data.hourly_solar || 0} kWh`;
                 })
                 .catch(err => {
                     console.error('获取失败', err);

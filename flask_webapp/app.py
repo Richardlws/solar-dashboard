@@ -319,79 +319,178 @@ def get_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 在 app.py 中添加以下新接口（建议加在文件末尾）
-from flask import request
-
 @app.route('/get_hourly_summary')
 def get_hourly_summary():
+    start_str = request.args.get('start_time')
+    end_str = request.args.get('end_time')
+    print("start_time =", start_str)
+    print("end_time =", end_str)
+
+    if not start_str or not end_str:
+        return jsonify({'error': '缺少 start 或 end 参数'}), 400
+
     try:
-        from datetime import datetime, timedelta
-        start_str = request.args.get('start_time')
-        end_str = request.args.get('end_time')
-
-        if not start_str or not end_str:
-            return jsonify({'error': '缺少 start 或 end 参数'}), 400
-
         start_dt = datetime.strptime(start_str, "%Y-%m-%d %H:%M")
         end_dt = datetime.strptime(end_str, "%Y-%m-%d %H:%M")
         if start_dt > end_dt:
             return jsonify({'error': '起始时间不能晚于结束时间'}), 400
+    except ValueError:
+        return jsonify({'error': '时间格式应为 YYYY-MM-DD HH:MM'}), 400
 
-        # 获取所有涉及的日期（跨天支持）
-        def get_involved_dates(start, end):
-            days = (end.date() - start.date()).days
-            return [(start.date() + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(days + 1)]
+    def parse_port1(file_path):
+        total_kw = 0
+        timestamps = []
+        with open(file_path, 'r', encoding='gbk', errors='ignore') as f:
+            lines = f.readlines()
 
-        date_list = get_involved_dates(start_dt, end_dt)
+        current_time = None
+        # sample_debug = []
+        # b3_debug = []
+        for i, line in enumerate(lines):
+            if '接收' in line and re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line):
+                time_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)', line)
+                current_time = datetime.strptime(time_match.group(1), "%Y-%m-%d %H:%M:%S.%f")
+            elif '0000:' in line and current_time:
+                if start_dt <= current_time <= end_dt:
+                    hex_str = line.strip().split('0000:')[-1].strip().replace(' ', '')
+                    if '33333635' in hex_str:
+                        idx = hex_str.find('33333635')
+                        raw_data = hex_str[idx + 8:idx + 14]
+                        if len(raw_data) == 6:
+                            try:
+                                if raw_data[4:6].upper() == 'B3':
+                                    # if len(b3_debug) < 3:
+                                    #    b3_debug.append(current_time.strftime('%H:%M:%S.%f'))
+                                    continue
+                                a, b, c = raw_data[0:2], raw_data[2:4], raw_data[4:6]
 
-        total_kwh = 0.0
-        total_solar = 0.0
+                                def decode_byte(byte_hex):
+                                    high = int(byte_hex[0], 16) - 3
+                                    low = int(byte_hex[1], 16) - 3
+                                    return int(f"{high}{low}")
 
-        for date_str in date_list:
-            base = f"[192.168.1.254] {date_str}"
-            file1 = os.path.join(DATA_DIR, base + "-port1.txt")
-            file2 = os.path.join(DATA_DIR, base + "-port2.txt")
+                                v1 = decode_byte(c)
+                                v2 = decode_byte(b)
+                                v3 = decode_byte(a)
+                                val = int(f"{v1:02d}{v2:02d}{v3:02d}") / 10000 * 30
+                                # if len(sample_debug) < 3:
+                                #    sample_debug.append({'time': current_time.strftime('%H:%M:%S.%f'), 'val': val})
+                                total_kw += val
+                                timestamps.append(current_time)
+                            except:
+                                continue
 
-            # 电网用电（port1）
-            if os.path.exists(file1):
-                try:
-                    result = extract_and_calculate(file1)
-                    interval = result.get('sampling_interval_seconds')
-                    count = result.get('swapped_segments')
-                    start_time = result.get('start time')
+        if len(timestamps) >= 2:
+            duration = (timestamps[-1] - timestamps[0]).total_seconds()
+            interval = duration / (len(timestamps) - 1)
+            # print(duration)
+            # print(interval)
+        else:
+            interval = 0.5
 
-                    if interval and count and start_time:
-                        for i in range(count):
-                            t = start_time + timedelta(seconds=i * interval)
-                            if start_dt <= t <= end_dt:
-                                if i < result['records_normal']:
-                                    kw = result['total_normal'] / result['records_normal'] / 10000 * 30
-                                    total_kwh += kw * interval / 3600
-                                else:
-                                    kw = result['special_sum'] / result['records_80'] / 10000 * 30 if result['records_80'] else 0
-                                    total_kwh += kw * interval / 3600
-                except Exception as e:
-                    print(f"[port1] 错误: {e}")
+        # print(f"📋 Port1 前三条样本: {sample_debug}")
+        # print(f"🟦 B3 开头帧前3个时间点: {b3_debug}")
+        return round(total_kw * interval / 3600, 1)
 
-            # 太阳能发电（port2）
-            if os.path.exists(file2):
-                try:
-                    rows = parse_modbus_data(file2)
-                    for row in rows:
-                        ts = row[0]
-                        if start_dt <= ts <= end_dt:
-                            # 只算 total_power 值（kW），推估 1s 或 0.5s 采样时间（这里默认 5min 间隔）
-                            total_solar += row[3] * 300 / 3600  # 估算每条记录代表 5 分钟（300秒）
-                except Exception as e:
-                    print(f"[port2] 错误: {e}")
+    def parse_port2(file_path):
+        total_kwh = 0
+        timestamps = []
+        power_values = []
 
-        return jsonify({
-            'total_kwh': round(total_kwh, 3),
-            'total_solar': round(total_solar, 3)
-        })
+        try:
+            with open(file_path, 'r', encoding='gbk', errors='ignore') as f:
+                lines = f.readlines()
+        except:
+            return 0
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        grouped_frames = []
+        current_frame = []
+        current_timestamp = ""
+        collecting = False
+
+        for line in lines:
+            line = line.strip()
+            if re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}", line):
+                current_timestamp = re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}", line).group(0)
+            if "01 04 46" in line:
+                if collecting and current_frame:
+                    grouped_frames.append((current_timestamp, current_frame))
+                    current_frame = []
+                collecting = True
+                current_frame = [line]
+            elif collecting and re.match(r"^\d{4}:", line):
+                current_frame.append(line)
+            elif collecting and line == "":
+                if current_frame:
+                    grouped_frames.append((current_timestamp, current_frame))
+                    current_frame = []
+                collecting = False
+        if collecting and current_frame:
+            grouped_frames.append((current_timestamp, current_frame))
+
+        def extract_bytes_from_text_frame(frame_lines):
+            hex_bytes = []
+            for line in frame_lines:
+                parts = line.split(":", 1)
+                if len(parts) != 2:
+                    continue
+                hex_part = parts[1].strip().split()
+                hex_bytes.extend(hex_part)
+            return hex_bytes
+
+        for timestamp, frame_lines in grouped_frames:
+            byte_list = extract_bytes_from_text_frame(frame_lines)
+            if len(byte_list) < 75:
+                continue
+            try:
+                total_power = int(byte_list[61] + byte_list[62] + byte_list[59] + byte_list[60], 16)
+                if total_power >= 0x80000000:
+                    total_power -= 0x100000000
+                total_power *= 0.001  # W → kW
+
+                ts = datetime.strptime(timestamp.split('.')[0], "%Y-%m-%d %H:%M:%S")
+                if start_dt <= ts <= end_dt:
+                    power_values.append(total_power)
+                    timestamps.append(ts)
+            except:
+                continue
+
+        if len(timestamps) >= 2:
+            duration = (timestamps[-1] - timestamps[0]).total_seconds()
+            interval = duration / (len(timestamps) - 1)
+        else:
+            interval = 5  # 默认间隔
+
+        for val in power_values:
+            total_kwh += val * interval / 3600
+
+        return round(total_kwh, 2)
+
+    date_strs = set()
+    current = start_dt
+    while current <= end_dt:
+        date_strs.add(current.strftime("%Y-%m-%d"))
+        current += timedelta(days=1)
+
+    total_kwh = 0.0
+    total_solar = 0.0
+
+    for date in date_strs:
+        base = f"[192.168.1.254] {date}"
+        port1_path = os.path.join(DATA_DIR, base + "-port1.txt")
+        port2_path = os.path.join(DATA_DIR, base + "-port2.txt")
+
+        if os.path.exists(port1_path):
+            total_kwh += parse_port1(port1_path)
+        if os.path.exists(port2_path):
+            total_solar += parse_port2(port2_path)
+
+    return jsonify({
+        'hourly_kwh': round(total_kwh, 1),
+        'hourly_solar': round(total_solar, 1)
+    })
+
+
 
 
 

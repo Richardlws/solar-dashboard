@@ -175,8 +175,8 @@ def get_hourly_summary():
             total_solar += parse_port2(port2_path)
 
     return jsonify({
-        'total_kwh': round(total_kwh, 1),
-        'total_solar': round(total_solar, 1)
+        'hourly_kwh': round(total_kwh, 1),
+        'hourly_solar': round(total_solar, 1)
     })
 
 
