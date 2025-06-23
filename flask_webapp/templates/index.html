@@ -233,18 +233,26 @@
         function fetchHourSummary() {
             const start = document.getElementById('start-datetime').value;
             const end = document.getElementById('end-datetime').value;
+            const summaryEl = document.getElementById('hour-summary');
+
             if (!start || !end) return;
 
-            axios.get(`/get_hourly_summary?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
+
+            // 👇 加载中提示放这里
+            summaryEl.innerText = '⏳ 数据加载中...';
+
+            axios.get(`/get_hourly_summary?start_time=${encodeURIComponent(start)}&end_time=${encodeURIComponent(end)}`)
                 .then(res => {
                     const data = res.data;
                     document.getElementById('hour-summary').innerText =
                         `时段总用电量：${data.total_kwh || 0} kWh\n时段总发电量：${data.total_solar || 0} kWh`;
                 })
-                .catch(() => {
-                    document.getElementById('hour-summary').innerText = '获取失败';
+                .catch(err => {
+                    console.error('获取失败', err);
+                    summaryEl.innerText = '获取失败，请检查时间范围或服务器状态';
                 });
         }
+
 
 
         document.addEventListener('DOMContentLoaded', function() {

@@ -182,5 +182,5 @@ if __name__ == '__main__':
     # 手动测试用例
     from types import SimpleNamespace
 
-    with app.test_request_context('/get_hourly_summary?start=2025-06-16 00:00&end=2025-06-18 23:59'):
+    with app.test_request_context('/get_hourly_summary?start=2025-06-10 00:00&end=2025-06-10 23:59'):
         print(get_hourly_summary().get_json())
