@@ -684,7 +684,7 @@ scheduler.start()
 
 if __name__ == '__main__':
     generate_all_cache()
-    ##generate_yesterday_summary()
+    #generate_yesterday_summary()
     app.run(debug=True, host='0.0.0.0', port=5000)
 
 
