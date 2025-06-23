@@ -642,14 +642,21 @@ def generate_all_cache():
     files = os.listdir(log_dir)
     date_set = set()
 
+    import re
     for filename in files:
-        if filename.startswith("[192.168.1.254] ") and filename.endswith("-port1.txt"):
-            date_part = filename.split()[1]
+        match = re.match(r"\[192\.168\.1\.254\] (\d{4}-\d{2}-\d{2})-port1\.txt", filename)
+        if match:
+            date_part = match.group(1)
             date_set.add(date_part)
 
     for date_str in sorted(date_set):
         try:
+            cache_file = os.path.join('cache', f"{date_str}.json")
+            if os.path.exists(cache_file):
+                print(f"[{date_str}] 缓存已存在，跳过。")
+                continue
             print(f"生成缓存：{date_str}")
+
 
             base = f"[192.168.1.254] {date_str}"
             file1 = os.path.join(log_dir, base + "-port1.txt")
@@ -727,6 +734,7 @@ def generate_all_cache():
 
         except Exception as e:
             print(f"⚠️ 生成 {date_str} 缓存失败：{e}")
+
 
 
 
