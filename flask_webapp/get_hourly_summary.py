@@ -12,6 +12,8 @@ app = Flask(__name__)
 def get_hourly_summary():
     start_str = request.args.get('start_time')
     end_str = request.args.get('end_time')
+    print("start_time =", start_str)
+    print("end_time =", end_str)
 
     if not start_str or not end_str:
         return jsonify({'error': '缺少 start 或 end 参数'}), 400
@@ -178,9 +180,9 @@ def get_hourly_summary():
     })
 
 
-#if __name__ == '__main__':
+if __name__ == '__main__':
     # 手动测试用例
-    #from types import SimpleNamespace
+    from types import SimpleNamespace
 
-    #with app.test_request_context('/get_hourly_summary?start=2025-06-10 00:00&end=2025-06-10 23:59'):
-        #print(get_hourly_summary().get_json())
+    with app.test_request_context('/get_hourly_summary?start_time=2025-06-11 00:00&end_time=2025-06-11 23:59'):
+        print(get_hourly_summary().get_json())

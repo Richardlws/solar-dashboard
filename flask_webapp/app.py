@@ -326,8 +326,8 @@ from flask import request
 def get_hourly_summary():
     try:
         from datetime import datetime, timedelta
-        start_str = request.args.get('start')
-        end_str = request.args.get('end')
+        start_str = request.args.get('start_time')
+        end_str = request.args.get('end_time')
 
         if not start_str or not end_str:
             return jsonify({'error': '缺少 start 或 end 参数'}), 400
