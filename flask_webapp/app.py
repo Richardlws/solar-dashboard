@@ -210,6 +210,8 @@ def get_summary():
     start_date = request.args.get('start', '').strip()
     end_date = request.args.get('end', '').strip()
 
+    print(f"[get_summary] start={start_date}, end={end_date}")
+    
     # ✅ 如果提供了时间范围参数，就走“区间统计”逻辑
     if start_date and end_date and start_date.lower() != 'null' and end_date.lower() != 'null':
         try:
