@@ -246,14 +246,39 @@ def get_summary():
 
             date_list = get_range_dates(start_dt, end_dt)
             kwh, solar = sum_energy(date_list)
+
+            # ✅ 如果是请求当天的数据，尝试补充实时功率
+            today_str = datetime.today().strftime('%Y-%m-%d')
+            realtime_power = None
+            solar_power = None
+            if start_date == end_date == today_str:
+                port1_path = os.path.join(DATA_DIR, f"[192.168.1.254] {today_str}-port1.txt")
+                port2_path = os.path.join(DATA_DIR, f"[192.168.1.254] {today_str}-port2.txt")
+
+                if os.path.exists(port1_path):
+                    try:
+                        result = extract_and_calculate(port1_path)
+                        if "last_power_kw" in result:
+                            realtime_power = result["last_power_kw"]
+                    except:
+                        pass
+                if os.path.exists(port2_path):
+                    try:
+                        data2 = parse_modbus_data(port2_path)
+                        if data2 and len(data2[-1]) >= 4:
+                            solar_power = data2[-1][3]
+                    except:
+                        pass
+
             return jsonify({
                 "total_kwh": round(kwh, 2),
-                "total_solar": round(solar, 2)
+                "total_solar": round(solar, 2),
+                "realtime_power": round(realtime_power, 2) if realtime_power is not None else None,
+                "solar_power": round(solar_power, 2) if solar_power is not None else None
             })
 
         except Exception as e:
             return jsonify({"error": f"时间范围解析失败: {e}"}), 400
-
 
     try:
         today = datetime.today().date()
