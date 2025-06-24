@@ -331,10 +331,9 @@
                 datesSet: function(info) {
                   setTimeout(renderLunar, 100);
 
-                  // ✅ info.start 是当前视图的起始时间（例如该月的第一天）
-                  const currentStart = info.start;
-                  const year = currentStart.getFullYear();
-                  const month = currentStart.getMonth() + 1;
+                  const now = calendar.getDate();  // ✅ 当前视图中心点
+                  const year = now.getFullYear();
+                  const month = now.getMonth() + 1;
 
                   // ✅ 调用你的汇总函数
                   fetchMonthAndYearSummary(year, month);
