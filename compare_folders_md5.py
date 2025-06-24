@@ -70,6 +70,8 @@ class DuplicateViewer(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("重复文件比较与删除工具（支持多选）")
+        self.setFixedSize(1000, 700)
+        self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint)
         self.setMinimumWidth(1000)
 
         self.folder1 = ""
