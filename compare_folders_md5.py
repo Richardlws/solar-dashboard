@@ -70,7 +70,7 @@ class DuplicateViewer(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("重复文件比较与删除工具（支持多选）")
-        self.setFixedSize(1000, 700)
+        self.setFixedSize(1000, 500)
         self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowCloseButtonHint)
         self.setMinimumWidth(1000)
 
@@ -109,6 +109,10 @@ class DuplicateViewer(QWidget):
         self.select_left_btn.clicked.connect(self.select_all_left)
         self.select_right_btn.clicked.connect(self.select_all_right)
 
+        # 统一设置按钮高度
+        for btn in [btn1, btn2, self.compare_btn, self.select_left_btn, self.select_right_btn, self.delete_btn]:
+            btn.setFixedHeight(32)
+
         # 文件展示区域
         # 左列滚动区域
         self.left_scroll = QScrollArea()
@@ -145,8 +149,10 @@ class DuplicateViewer(QWidget):
 
         control_btns = QHBoxLayout()
         control_btns.addWidget(self.select_left_btn)
-        control_btns.addWidget(self.select_right_btn)
+        control_btns.addStretch()
         control_btns.addWidget(self.delete_btn)
+        control_btns.addStretch()
+        control_btns.addWidget(self.select_right_btn)
         layout.addLayout(control_btns)
 
         self.setLayout(layout)
