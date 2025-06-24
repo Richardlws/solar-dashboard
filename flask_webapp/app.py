@@ -207,11 +207,11 @@ def get_data():
 
 @app.route('/get_summary')
 def get_summary():
-    start_date = request.args.get('start')
-    end_date = request.args.get('end')
+    start_date = request.args.get('start', '').strip()
+    end_date = request.args.get('end', '').strip()
 
     # ✅ 如果提供了时间范围参数，就走“区间统计”逻辑
-    if start_date and end_date:
+    if start_date and end_date and start_date.lower() != 'null' and end_date.lower() != 'null':
         try:
             start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
