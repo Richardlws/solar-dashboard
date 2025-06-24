@@ -328,14 +328,19 @@
                     center: 'title',
                     right: 'next,nextYear'
                 },
-                datesSet: function() {
-                    setTimeout(renderLunar, 100);
-                },
-                const view = calendar.view;
-                const currentStart = view.currentStart;
-                const year = currentStart.getFullYear();
-                const month = currentStart.getMonth() + 1;
-                fetchMonthAndYearSummary(year, month);
+                datesSet: function(info) {
+                  setTimeout(renderLunar, 100);
+
+                  // ✅ info.start 是当前视图的起始时间（例如该月的第一天）
+                  const currentStart = info.start;
+                  const year = currentStart.getFullYear();
+                  const month = currentStart.getMonth() + 1;
+
+                  // ✅ 调用你的汇总函数
+                  fetchMonthAndYearSummary(year, month);
+                }
+
+
 
                 dateClick: function(info) {
                     if (lastSelectedCell) {
