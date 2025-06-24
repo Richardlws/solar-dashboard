@@ -255,20 +255,31 @@ def get_summary():
                 port1_path = os.path.join(DATA_DIR, f"[192.168.1.254] {today_str}-port1.txt")
                 port2_path = os.path.join(DATA_DIR, f"[192.168.1.254] {today_str}-port2.txt")
 
+                print(f"[实时数据] 开始处理 {today_str}")
+                print(f"[实时数据] port1 路径: {port1_path}")
+                print(f"[实时数据] port2 路径: {port2_path}")
+
                 if os.path.exists(port1_path):
                     try:
                         result = extract_and_calculate(port1_path)
+                        print(f"[实时数据] port1 提取结果: {result}")
                         if "last_power_kw" in result:
                             realtime_power = result["last_power_kw"]
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"[实时数据] port1 提取失败: {e}")
+                else:
+                    print("[实时数据] ⚠️ port1 文件不存在")
+
                 if os.path.exists(port2_path):
                     try:
                         data2 = parse_modbus_data(port2_path)
+                        print(f"[实时数据] port2 最新记录: {data2[-1] if data2 else '空'}")
                         if data2 and len(data2[-1]) >= 4:
                             solar_power = data2[-1][3]
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"[实时数据] port2 提取失败: {e}")
+                else:
+                    print("[实时数据] ⚠️ port2 文件不存在")
 
             return jsonify({
                 "total_kwh": round(kwh, 2),
