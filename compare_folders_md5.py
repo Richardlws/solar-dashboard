@@ -182,10 +182,15 @@ class DuplicateViewer(QWidget):
         self.delete_btn.setEnabled(True)
 
     def delete_selected(self):
+        def clean_path(path):
+            # 清理多余前缀、统一分隔符
+            return os.path.normpath(path).replace("\\\\?\\", "").strip('"')
+
         deleted = []
         for cb in self.left_checks + self.right_checks:
             if cb.isChecked():
-                path = cb.text()
+                raw_path = cb.text()
+                path = clean_path(raw_path)
                 if os.path.isfile(path):
                     try:
                         send2trash(path)
@@ -194,6 +199,9 @@ class DuplicateViewer(QWidget):
                         cb.setChecked(False)
                     except Exception as e:
                         QMessageBox.warning(self, "删除失败", f"{path}\n{e}")
+                else:
+                    QMessageBox.warning(self, "文件不存在", f"找不到文件：{path}")
+
         QMessageBox.information(self, "删除完成", f"成功删除 {len(deleted)} 个文件（已移入回收站）")
 
     def select_all_left(self):
