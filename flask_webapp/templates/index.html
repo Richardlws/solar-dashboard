@@ -256,14 +256,13 @@
         </div>
         <div class="box" id="realtime-box">
             <h3>⏱ 实时数据面板</h3>
-            <div id="realtime-data">加载中...
+            <div id="realtime-data">加载中...</div>
             <!-- 🔋 添加这个电池显示结构 -->
             <div id="battery-container">
               <div id="battery">
                 <div id="battery-fill"></div>
               </div>
               <span id="battery-percent">--%</span>
-            </div>
             </div>
         </div>
 
@@ -301,36 +300,52 @@
         }
 
         function updateRealtimePanel() {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const today = now.toISOString().slice(0, 10);
+
             axios.get(`/get_summary?start=${today}&end=${today}`)
                 .then(res => {
                     const data = res.data || {};
-                    const power = (typeof data.realtime_power === 'number') ? data.realtime_power.toFixed(3) : '--';
-                    const solar = (typeof data.solar_power === 'number') ? data.solar_power.toFixed(3) : '--';
+                    const powerNum = data.realtime_power;
+                    const solarNum = data.solar_power;
+                    const power = (typeof powerNum === 'number') ? powerNum.toFixed(3) : '--';
+                    const solar = (typeof solarNum === 'number') ? solarNum.toFixed(3) : '--';
 
                     document.getElementById('realtime-data').innerHTML = `
-            当前时间：${timeStr}<br>
-            当前用电功率：${power} kW<br>
-            当前发电功率：${solar} kW<br>
-            `;
+        最近更新时间：${timeStr}<br>
+        当前电网输送电功率：${power} kW<br>
+        当前太阳能发电功率：${solar} kW<br>`;
 
-                    // ✅ 电池条计算（加防护）
-                    const installedCapacity = 15;
-                    let percent = 0;
-                    if (!isNaN(data.solar_power)) {
-                        percent = Math.min(Math.max(data.solar_power / installedCapacity * 100, 0), 100).toFixed(0);
+                    // 电池图标
+                    const installedCapacity = 16.8;
+                    const fill = document.getElementById('battery-fill');
+                    const percentText = document.getElementById('battery-percent');
+                    if (fill && percentText) {
+                        let percent = 0;
+                        if (typeof solarNum === 'number' && installedCapacity > 0) {
+                            percent = Math.min(Math.max(solarNum / installedCapacity * 100, 0), 100);
+                            fill.style.width = `${percent.toFixed(0)}%`;
+                            percentText.innerText = `${percent.toFixed(0)}%`;
+                        } else {
+                            fill.style.width = `0%`;
+                            percentText.innerText = `--%`;
+                        }
                     }
-
-                    document.getElementById('battery-fill').style.width = `${percent}%`;
-                    document.getElementById('battery-percent').innerText = `${percent}%`;
                 })
                 .catch(() => {
                     document.getElementById('realtime-data').innerText = '❌ 无法获取实时数据';
-                    document.getElementById('battery-fill').style.width = `0%`;
-                    document.getElementById('battery-percent').innerText = `--%`;
+                    const fill = document.getElementById('battery-fill');
+                    const percentText = document.getElementById('battery-percent');
+                    if (fill && percentText) {
+                        fill.style.width = `0%`;
+                        percentText.innerText = `--%`;
+                    }
                 });
         }
 
-        setInterval(updateRealtimePanel, 5000);  // 每5秒刷新
+
+        setInterval(updateRealtimePanel, 60000);  // 每1分钟刷新
         updateRealtimePanel();  // 初始调用
 
 
