@@ -203,18 +203,31 @@
 
             // 自动汇总函数
         function fetchAutoSummary() {
-            axios.get('/get_summary')
-                .then(res => {
-                    const data = res.data;
-                    document.getElementById('monthly-power').innerText = `本月用电量（电网）：${data.monthly_kwh || 0} kWh`;
-                    document.getElementById('yearly-power').innerText = `本年用电量（电网）：${data.yearly_kwh || 0} kWh`;
-                    document.getElementById('monthly-solar').innerText = `本月发电量（太阳能）：${data.monthly_solar || 0} kWh`;
-                    document.getElementById('yearly-solar').innerText = `本年发电量（太阳能）：${data.yearly_solar || 0} kWh`;
-                })
-                .catch(() => {
-                    console.warn('自动汇总数据加载失败');
-                });
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+
+            const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+            const endOfMonth = new Date(year, month, 0).toISOString().slice(0, 10);
+
+            const startOfYear = `${year}-01-01`;
+            const endOfYear = `${year}-12-31`;
+
+            Promise.all([
+                axios.get(`/get_summary?start=${startOfMonth}&end=${endOfMonth}`),
+                axios.get(`/get_summary?start=${startOfYear}&end=${endOfYear}`)
+            ]).then(([monthRes, yearRes]) => {
+                const monthData = monthRes.data;
+                const yearData = yearRes.data;
+                document.getElementById('monthly-power').innerText = `本月用电量（电网）：${monthData.total_kwh || 0} kWh`;
+                document.getElementById('monthly-solar').innerText = `本月发电量（太阳能）：${monthData.total_solar || 0} kWh`;
+                document.getElementById('yearly-power').innerText = `本年用电量（电网）：${yearData.total_kwh || 0} kWh`;
+                document.getElementById('yearly-solar').innerText = `本年发电量（太阳能）：${yearData.total_solar || 0} kWh`;
+            }).catch(() => {
+                console.warn('自动汇总数据加载失败');
+            });
         }
+
 
         function fetchRangeSummary() {
             const start = document.getElementById('start-date').value;
@@ -252,6 +265,28 @@
                     summaryEl.innerText = '获取失败，请检查时间范围或服务器状态';
                 });
         }
+
+        function fetchMonthAndYearSummary(year, month) {
+            const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+            const endOfMonth = new Date(year, month, 0).toISOString().slice(0, 10);
+            const startOfYear = `${year}-01-01`;
+            const endOfYear = `${year}-12-31`;
+
+            Promise.all([
+                axios.get(`/get_summary?start=${startOfMonth}&end=${endOfMonth}`),
+                axios.get(`/get_summary?start=${startOfYear}&end=${endOfYear}`)
+            ]).then(([monthRes, yearRes]) => {
+                const monthData = monthRes.data;
+                const yearData = yearRes.data;
+                document.getElementById('monthly-power').innerText = `本月用电量（电网）：${monthData.total_kwh || 0} kWh`;
+                document.getElementById('monthly-solar').innerText = `本月发电量（太阳能）：${monthData.total_solar || 0} kWh`;
+                document.getElementById('yearly-power').innerText = `本年用电量（电网）：${yearData.total_kwh || 0} kWh`;
+                document.getElementById('yearly-solar').innerText = `本年发电量（太阳能）：${yearData.total_solar || 0} kWh`;
+            }).catch(err => {
+                console.warn('获取月/年汇总失败', err);
+            });
+        }
+
 
 
 
@@ -296,6 +331,12 @@
                 datesSet: function() {
                     setTimeout(renderLunar, 100);
                 },
+                const view = calendar.view;
+                const currentStart = view.currentStart;
+                const year = currentStart.getFullYear();
+                const month = currentStart.getMonth() + 1;
+                fetchMonthAndYearSummary(year, month);
+
                 dateClick: function(info) {
                     if (lastSelectedCell) {
                         lastSelectedCell.classList.remove('selected');
