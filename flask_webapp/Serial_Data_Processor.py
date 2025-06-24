@@ -73,6 +73,12 @@ def extract_and_calculate(filepath):
     # 计算采样点间隔时间（秒）
     sampling_interval = real_sampling_time / len(swapped_segments) if swapped_segments else 0
 
+    # 提取当前瞬时功率（最后一个正常采样值）
+    last_power_kw = None
+    if not_80:
+        last_value = int(''.join(f"{b:02X}" for b in not_80[-1]))
+        last_power_kw = round((last_value / 10000 * 30), 3)  # 单位为 kW
+
     # 返回结果
     return {
         'records_normal': len(not_80),
@@ -85,7 +91,9 @@ def extract_and_calculate(filepath):
         'sampling_interval_seconds': round(sampling_interval, 3),
         'swapped_segments': len(swapped_segments),
         'start time': start_time,
-        'end time': end_time
+        'end time': end_time,
+        'last_power_kw': last_power_kw
+
     }
 
 
