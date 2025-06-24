@@ -255,7 +255,7 @@ def get_summary():
 
     try:
         today = datetime.today().date()
-        today_str = today.strftime('%Y-%m-%d')
+        today_str = datetime.today().strftime('%Y-%m-%d')
         summary_cache_path = os.path.join('summary_cache', f"{today_str}.json")
 
         # ✅ 如果缓存已存在，直接返回
