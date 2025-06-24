@@ -4,7 +4,7 @@ from collections import defaultdict
 from send2trash import send2trash
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFileDialog, QProgressBar, QCheckBox, QMessageBox
+    QFileDialog, QProgressBar, QCheckBox, QMessageBox,QScrollArea
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 import sys
@@ -108,12 +108,32 @@ class DuplicateViewer(QWidget):
         self.select_right_btn.clicked.connect(self.select_all_right)
 
         # 文件展示区域
-        self.left_col = QVBoxLayout()
-        self.right_col = QVBoxLayout()
+        # 左列滚动区域
+        self.left_scroll = QScrollArea()
+        self.left_scroll.setWidgetResizable(True)
+        self.left_widget = QWidget()
+        self.left_col = QVBoxLayout(self.left_widget)
+        self.left_widget.setLayout(self.left_col)
+        self.left_scroll.setWidget(self.left_widget)
 
+        # 👉 设置滚动高度
+        self.left_scroll.setFixedHeight(300)
+
+        # 右列滚动区域
+        self.right_scroll = QScrollArea()
+        self.right_scroll.setWidgetResizable(True)
+        self.right_widget = QWidget()
+        self.right_col = QVBoxLayout(self.right_widget)
+        self.right_widget.setLayout(self.right_col)
+        self.right_scroll.setWidget(self.right_widget)
+
+        # 👉 设置滚动高度
+        self.right_scroll.setFixedHeight(300)
+
+        # 添加到水平布局中
         file_area = QHBoxLayout()
-        file_area.addLayout(self.left_col)
-        file_area.addLayout(self.right_col)
+        file_area.addWidget(self.left_scroll)
+        file_area.addWidget(self.right_scroll)
 
         layout.addLayout(folder_layout)
         layout.addWidget(self.compare_btn)
