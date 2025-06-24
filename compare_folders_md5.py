@@ -1,21 +1,13 @@
-import sys
 import os
 import hashlib
 from collections import defaultdict
+from send2trash import send2trash
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QPushButton, QTextEdit, QVBoxLayout, QFileDialog,
-    QLabel, QHBoxLayout, QProgressBar
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QFileDialog, QProgressBar, QCheckBox, QMessageBox
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-
-def get_all_files(folder):
-    """返回文件夹内所有文件路径列表"""
-    files = []
-    for root, _, filenames in os.walk(folder):
-        for f in filenames:
-            full_path = os.path.join(root, f)
-            files.append(full_path)
-    return files
+import sys
 
 def get_file_md5(file_path):
     hasher = hashlib.md5()
@@ -24,10 +16,16 @@ def get_file_md5(file_path):
             hasher.update(chunk)
     return hasher.hexdigest()
 
-# --- 线程类：后台执行比较 ---
+def collect_files(folder):
+    all_files = []
+    for root, _, files in os.walk(folder):
+        for f in files:
+            all_files.append(os.path.join(root, f))
+    return all_files
+
 class CompareThread(QThread):
-    progress = pyqtSignal(int, str)         # 百分比进度 + 当前文件名
-    finished = pyqtSignal(str)
+    progress = pyqtSignal(int, str)
+    finished = pyqtSignal(list)
 
     def __init__(self, folder1, folder2):
         super().__init__()
@@ -35,99 +33,101 @@ class CompareThread(QThread):
         self.folder2 = folder2
 
     def run(self):
-        output = []
-        all_files_1 = get_all_files(self.folder1)
-        all_files_2 = get_all_files(self.folder2)
-        total_files = len(all_files_1) + len(all_files_2)
-        processed = 0
+        files1 = collect_files(self.folder1)
+        files2 = collect_files(self.folder2)
+        total = len(files1) + len(files2)
+        count = 0
 
-        md5_1 = defaultdict(list)
-        for file in all_files_1:
+        md5_map1 = defaultdict(list)
+        for f in files1:
             try:
-                md5 = get_file_md5(file)
-                md5_1[md5].append(file)
+                md5 = get_file_md5(f)
+                md5_map1[md5].append(f)
             except:
                 pass
-            processed += 1
-            self.progress.emit(int(processed * 100 / total_files), os.path.basename(file))
+            count += 1
+            self.progress.emit(int(count * 100 / total), os.path.basename(f))
 
-        md5_2 = defaultdict(list)
-        for file in all_files_2:
+        md5_map2 = defaultdict(list)
+        for f in files2:
             try:
-                md5 = get_file_md5(file)
-                md5_2[md5].append(file)
+                md5 = get_file_md5(f)
+                md5_map2[md5].append(f)
             except:
                 pass
-            processed += 1
-            self.progress.emit(int(processed * 100 / total_files), os.path.basename(file))
+            count += 1
+            self.progress.emit(int(count * 100 / total), os.path.basename(f))
 
-        output.append(f"📁 文件夹 1: {self.folder1}")
-        output.append(f"📁 文件夹 2: {self.folder2}\n")
+        duplicates = []
+        for md5 in set(md5_map1.keys()) & set(md5_map2.keys()):
+            for f1 in md5_map1[md5]:
+                for f2 in md5_map2[md5]:
+                    duplicates.append((f1, f2))
 
-        common_md5 = set(md5_1.keys()) & set(md5_2.keys())
-        if not common_md5:
-            output.append("✅ 没有发现内容相同的文件。")
-        else:
-            output.append("⚠️ 发现内容相同的文件：\n")
-            for md5 in common_md5:
-                output.append(f"MD5: {md5}")
-                for f1 in md5_1[md5]:
-                    output.append(f"  - 📂 文件夹 1: {f1}")
-                for f2 in md5_2[md5]:
-                    output.append(f"  - 📂 文件夹 2: {f2}")
-                output.append("")
+        self.finished.emit(duplicates)
 
-        self.finished.emit('\n'.join(output))
-
-# --- 主界面类 ---
-class FolderCompareWindow(QWidget):
+class DuplicateViewer(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("文件夹内容对比（按 MD5）- 带进度条")
-        self.setGeometry(200, 200, 800, 580)
+        self.setWindowTitle("重复文件比较与删除工具（支持多选）")
+        self.setMinimumWidth(1000)
 
         self.folder1 = ""
         self.folder2 = ""
-
-        self.label1 = QLabel("未选择文件夹 1")
-        self.label2 = QLabel("未选择文件夹 2")
-
-        self.btn_select1 = QPushButton("选择文件夹 1")
-        self.btn_select1.clicked.connect(self.select_folder1)
-
-        self.btn_select2 = QPushButton("选择文件夹 2")
-        self.btn_select2.clicked.connect(self.select_folder2)
-
-        self.btn_compare = QPushButton("开始比较")
-        self.btn_compare.clicked.connect(self.start_comparison)
-
-        self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: green")
-
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(0)
-
-        self.result_text = QTextEdit()
-        self.result_text.setReadOnly(True)
-
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(self.btn_select1)
-        top_layout.addWidget(self.label1)
-
-        mid_layout = QHBoxLayout()
-        mid_layout.addWidget(self.btn_select2)
-        mid_layout.addWidget(self.label2)
+        self.left_checks = []
+        self.right_checks = []
 
         layout = QVBoxLayout()
-        layout.addLayout(top_layout)
-        layout.addLayout(mid_layout)
-        layout.addWidget(self.btn_compare)
-        layout.addWidget(self.status_label)
-        layout.addWidget(self.progress_bar)
-        layout.addWidget(self.result_text)
+
+        # 选择与进度部分
+        folder_layout = QHBoxLayout()
+        self.label1 = QLabel("未选择文件夹 1")
+        self.label2 = QLabel("未选择文件夹 2")
+        btn1 = QPushButton("选择文件夹 1")
+        btn2 = QPushButton("选择文件夹 2")
+        btn1.clicked.connect(self.select_folder1)
+        btn2.clicked.connect(self.select_folder2)
+        folder_layout.addWidget(btn1)
+        folder_layout.addWidget(self.label1)
+        folder_layout.addWidget(btn2)
+        folder_layout.addWidget(self.label2)
+
+        self.progress = QProgressBar()
+        self.status = QLabel("")
+
+        self.compare_btn = QPushButton("开始比较")
+        self.compare_btn.clicked.connect(self.start_compare)
+
+        self.delete_btn = QPushButton("🗑️ 删除勾选文件（移入回收站）")
+        self.delete_btn.clicked.connect(self.delete_selected)
+        self.delete_btn.setEnabled(False)
+
+        self.select_left_btn = QPushButton("全选左边")
+        self.select_right_btn = QPushButton("全选右边")
+        self.select_left_btn.clicked.connect(self.select_all_left)
+        self.select_right_btn.clicked.connect(self.select_all_right)
+
+        # 文件展示区域
+        self.left_col = QVBoxLayout()
+        self.right_col = QVBoxLayout()
+
+        file_area = QHBoxLayout()
+        file_area.addLayout(self.left_col)
+        file_area.addLayout(self.right_col)
+
+        layout.addLayout(folder_layout)
+        layout.addWidget(self.compare_btn)
+        layout.addWidget(self.progress)
+        layout.addWidget(self.status)
+        layout.addLayout(file_area)
+
+        control_btns = QHBoxLayout()
+        control_btns.addWidget(self.select_left_btn)
+        control_btns.addWidget(self.select_right_btn)
+        control_btns.addWidget(self.delete_btn)
+        layout.addLayout(control_btns)
 
         self.setLayout(layout)
-        self.compare_thread = None
 
     def select_folder1(self):
         folder = QFileDialog.getExistingDirectory(self, "选择文件夹 1")
@@ -141,32 +141,82 @@ class FolderCompareWindow(QWidget):
             self.folder2 = folder
             self.label2.setText(folder)
 
-    def start_comparison(self):
+    def start_compare(self):
         if not self.folder1 or not self.folder2:
-            self.result_text.setText("❌ 请先选择两个文件夹。")
+            QMessageBox.warning(self, "提示", "请先选择两个文件夹。")
             return
 
-        self.status_label.setText("🕐 正在比较，请稍候...")
-        self.progress_bar.setValue(0)
-        self.btn_compare.setEnabled(False)
-        self.result_text.clear()
+        self.clear_checks()
+        self.clear_layout(self.left_col)
+        self.clear_layout(self.right_col)
+        self.progress.setValue(0)
+        self.status.setText("正在比较，请稍候...")
+        self.compare_btn.setEnabled(False)
+        self.delete_btn.setEnabled(False)
 
-        self.compare_thread = CompareThread(self.folder1, self.folder2)
-        self.compare_thread.progress.connect(self.update_progress)
-        self.compare_thread.finished.connect(self.display_result)
-        self.compare_thread.start()
+        self.thread = CompareThread(self.folder1, self.folder2)
+        self.thread.progress.connect(self.update_progress)
+        self.thread.finished.connect(self.display_duplicates)
+        self.thread.start()
 
     def update_progress(self, percent, filename):
-        self.progress_bar.setValue(percent)
-        self.status_label.setText(f"🧾 正在处理：{filename}（{percent}%）")
+        self.progress.setValue(percent)
+        self.status.setText(f"正在处理：{filename}（{percent}%）")
 
-    def display_result(self, result_text):
-        self.result_text.setText(result_text)
-        self.status_label.setText("✅ 比较完成。")
-        self.btn_compare.setEnabled(True)
+    def display_duplicates(self, duplicates):
+        if not duplicates:
+            self.status.setText("✅ 没有发现重复文件。")
+            self.compare_btn.setEnabled(True)
+            return
 
-if __name__ == '__main__':
+        for left, right in duplicates:
+            cb1 = QCheckBox(left)
+            cb2 = QCheckBox(right)
+            self.left_col.addWidget(cb1)
+            self.right_col.addWidget(cb2)
+            self.left_checks.append(cb1)
+            self.right_checks.append(cb2)
+
+        self.status.setText(f"共发现 {len(duplicates)} 对重复文件。")
+        self.compare_btn.setEnabled(True)
+        self.delete_btn.setEnabled(True)
+
+    def delete_selected(self):
+        deleted = []
+        for cb in self.left_checks + self.right_checks:
+            if cb.isChecked():
+                path = cb.text()
+                if os.path.isfile(path):
+                    try:
+                        send2trash(path)
+                        deleted.append(path)
+                        cb.setEnabled(False)
+                        cb.setChecked(False)
+                    except Exception as e:
+                        QMessageBox.warning(self, "删除失败", f"{path}\n{e}")
+        QMessageBox.information(self, "删除完成", f"成功删除 {len(deleted)} 个文件（已移入回收站）")
+
+    def select_all_left(self):
+        for cb in self.left_checks:
+            cb.setChecked(True)
+
+    def select_all_right(self):
+        for cb in self.right_checks:
+            cb.setChecked(True)
+
+    def clear_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+    def clear_checks(self):
+        self.left_checks.clear()
+        self.right_checks.clear()
+
+if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = FolderCompareWindow()
+    window = DuplicateViewer()
     window.show()
     sys.exit(app.exec_())
