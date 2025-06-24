@@ -169,6 +169,47 @@
           font-weight: bold;
         }
 
+        #battery-container {
+          display: flex;
+          align-items: center;
+          margin-top: 8px;
+        }
+
+        #battery {
+          width: 50px;
+          height: 20px;
+          border: 2px solid #333;
+          border-radius: 4px;
+          position: relative;
+          margin-right: 6px;
+          background-color: #fff;
+          box-sizing: border-box;
+        }
+
+        #battery::after {
+          content: '';
+          position: absolute;
+          top: 4px;
+          right: -6px;
+          width: 4px;
+          height: 12px;
+          background-color: #333;
+          border-radius: 1px;
+        }
+
+        #battery-fill {
+          height: 100%;
+          background-color: #4caf50;
+          width: 0%;
+          transition: width 0.4s ease;
+          border-radius: 2px 0 0 2px;
+        }
+
+        #battery-percent {
+          font-size: 13px;
+          color: #444;
+          min-width: 36px;
+        }
 
     </style>
 </head>
@@ -274,6 +315,15 @@
         当前时间：${timeStr}<br>
         当前电网输送功率：${power} kW<br>
         当前太阳能发电功率：${solar} kW`;
+                    const installedCapacity = 16.8;  // 替换成你的实际装机容量
+                    if (!isNaN(solar)) {
+                        const percent = Math.min(Math.max(solar / installedCapacity * 100, 0), 100).toFixed(0);
+                        document.getElementById('battery-fill').style.width = `${percent}%`;
+                        document.getElementById('battery-percent').innerText = `${percent}%`;
+                    } else {
+                        document.getElementById('battery-fill').style.width = `0%`;
+                        document.getElementById('battery-percent').innerText = `--%`;
+                    }
                 })
                 .catch(() => {
                     document.getElementById('realtime-data').innerText = '❌ 无法获取实时数据';
