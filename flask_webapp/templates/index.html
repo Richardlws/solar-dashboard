@@ -149,6 +149,24 @@
           font-family: monospace;
           white-space: pre-wrap;
         }
+        #realtime-box {
+          font-size: 14px;
+          line-height: 1.6;
+          padding: 15px;
+        }
+
+        #realtime-data {
+          font-family: "Microsoft YaHei", sans-serif;
+          white-space: pre-line;
+          color: #333;
+          margin-top: 10px;
+        }
+        .box h3 {
+          font-size: 16px;
+          margin-bottom: 8px;
+          font-weight: bold;
+        }
+
 
     </style>
 </head>
@@ -193,6 +211,11 @@
               <div id="hour-summary" class="range-result"></div>
             </div>
         </div>
+        <div class="box" id="realtime-box">
+            <h3>⏱ 实时数据面板</h3>
+            <pre id="realtime-data">加载中...</pre>
+        </div>
+
     </div>
 
     <script>
@@ -227,6 +250,30 @@
                 console.warn('自动汇总数据加载失败');
             });
         }
+
+        function updateRealtimePanel() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            const today = now.toISOString().slice(0, 10);
+
+            axios.get(`/get_summary?start=${today}&end=${today}`)
+                .then(res => {
+                    const data = res.data;
+                    const power = data.realtime_power ?? '未知';
+                    const solar = data.solar_power ?? '未知';
+
+                    document.getElementById('realtime-data').innerText = `
+        当前时间：${timeStr}
+        当前用电功率：${power} kW
+        当前发电功率：${solar} kW`;
+                })
+                .catch(() => {
+                    document.getElementById('realtime-data').innerText = '❌ 无法获取实时数据';
+                });
+        }
+
+        setInterval(updateRealtimePanel, 5000);  // 每5秒刷新
+        updateRealtimePanel();  // 初始调用
 
 
         function fetchRangeSummary() {
