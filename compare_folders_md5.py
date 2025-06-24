@@ -96,6 +96,7 @@ class DuplicateViewer(QWidget):
 
         self.progress = QProgressBar()
         self.status = QLabel("")
+        self.progress.setVisible(False)  # 🚫 程序启动时隐藏进度条
 
         self.compare_btn = QPushButton("开始比较")
         self.compare_btn.clicked.connect(self.start_compare)
@@ -177,6 +178,7 @@ class DuplicateViewer(QWidget):
         self.clear_checks()
         self.clear_layout(self.left_col)
         self.clear_layout(self.right_col)
+        self.progress.setVisible(True)
         self.progress.setValue(0)
         self.status.setText("正在比较，请稍候...")
         self.compare_btn.setEnabled(False)
