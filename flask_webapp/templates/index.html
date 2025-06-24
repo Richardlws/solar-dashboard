@@ -149,17 +149,19 @@
           font-family: monospace;
           white-space: pre-wrap;
         }
+
         #realtime-box {
-          font-size: 14px;
+          font-size: 12px;
           line-height: 1.6;
           padding: 15px;
         }
 
         #realtime-data {
           font-family: "Microsoft YaHei", sans-serif;
-          white-space: pre-line;
           color: #333;
-          margin-top: 10px;
+          margin-top: 4px;    /* ✅ 控制标题与内容的垂直间距 */
+          line-height: 1.5;   /* ✅ 控制多行内容的行距 */
+          font-size: 15px;
         }
         .box h3 {
           font-size: 16px;
@@ -213,10 +215,16 @@
         </div>
         <div class="box" id="realtime-box">
             <h3>⏱ 实时数据面板</h3>
-            <pre id="realtime-data">加载中...</pre>
+            <div id="realtime-data">加载中...
+            <!-- 🔋 添加这个电池显示结构 -->
+            <div id="battery-container">
+              <div id="battery">
+                <div id="battery-fill"></div>
+              </div>
+              <span id="battery-percent">--%</span>
+            </div>
+            </div>
         </div>
-
-    </div>
 
     <script>
         flatpickr("#start-date", { dateFormat: "Y-m-d" });
@@ -262,10 +270,10 @@
                     const power = data.realtime_power ?? '未知';
                     const solar = data.solar_power ?? '未知';
 
-                    document.getElementById('realtime-data').innerText = `
-        当前时间：${timeStr}
-        当前用电功率：${power} kW
-        当前发电功率：${solar} kW`;
+                    document.getElementById('realtime-data').innerHTML = `
+        当前时间：${timeStr}<br>
+        当前电网输送功率：${power} kW<br>
+        当前太阳能发电功率：${solar} kW`;
                 })
                 .catch(() => {
                     document.getElementById('realtime-data').innerText = '❌ 无法获取实时数据';
