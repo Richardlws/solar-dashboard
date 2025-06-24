@@ -301,32 +301,32 @@
         }
 
         function updateRealtimePanel() {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString();
-            const today = now.toISOString().slice(0, 10);
-
             axios.get(`/get_summary?start=${today}&end=${today}`)
                 .then(res => {
-                    const data = res.data;
-                    const power = data.realtime_power ?? '未知';
-                    const solar = data.solar_power ?? '未知';
+                    const data = res.data || {};
+                    const power = (typeof data.realtime_power === 'number') ? data.realtime_power.toFixed(3) : '--';
+                    const solar = (typeof data.solar_power === 'number') ? data.solar_power.toFixed(3) : '--';
 
                     document.getElementById('realtime-data').innerHTML = `
-        当前时间：${timeStr}<br>
-        当前电网输送功率：${power} kW<br>
-        当前太阳能发电功率：${solar} kW`;
-                    const installedCapacity = 16.8;  // 替换成你的实际装机容量
-                    if (!isNaN(solar)) {
-                        const percent = Math.min(Math.max(solar / installedCapacity * 100, 0), 100).toFixed(0);
-                        document.getElementById('battery-fill').style.width = `${percent}%`;
-                        document.getElementById('battery-percent').innerText = `${percent}%`;
-                    } else {
-                        document.getElementById('battery-fill').style.width = `0%`;
-                        document.getElementById('battery-percent').innerText = `--%`;
+            当前时间：${timeStr}<br>
+            当前用电功率：${power} kW<br>
+            当前发电功率：${solar} kW<br>
+            `;
+
+                    // ✅ 电池条计算（加防护）
+                    const installedCapacity = 15;
+                    let percent = 0;
+                    if (!isNaN(data.solar_power)) {
+                        percent = Math.min(Math.max(data.solar_power / installedCapacity * 100, 0), 100).toFixed(0);
                     }
+
+                    document.getElementById('battery-fill').style.width = `${percent}%`;
+                    document.getElementById('battery-percent').innerText = `${percent}%`;
                 })
                 .catch(() => {
                     document.getElementById('realtime-data').innerText = '❌ 无法获取实时数据';
+                    document.getElementById('battery-fill').style.width = `0%`;
+                    document.getElementById('battery-percent').innerText = `--%`;
                 });
         }
 
