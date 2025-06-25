@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>太阳能光伏数据查看系统</title>
+    <link rel="icon" href="data:;base64,=">
+    <!--<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />-->
+    <!-- ✅ FullCalendar 主 JS -->
+    <script src="{{ url_for('static', filename='js/index.global.min.js') }}"></script>
+
+    <!-- ✅ Axios -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/axios/1.6.7/axios.min.js"></script>
+
+    <!-- ✅ Lunar（农历）JS -->
+    <script src="{{ url_for('static', filename='js/lunar.min.js') }}"></script>
+
+    <!-- ✅ 确保 lunar 加载完后再定义 Lunar 变量 -->
+    <script>
+        if (window.Lunar) {
+            const Lunar = window.Lunar;
+          } else {
+            console.error("❌ 农历库加载失败！");
+          }
+    </script>
+
+    <!-- ✅ flatpickr 样式与功能 -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+    <script src="https://cdn.bootcdn.net/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+
+
+    <style>
+        body {
+            font-family: "Microsoft Yahei", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 20px;
+            height: 85vh;
+        }
+        .box {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            overflow: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #calendar {
+            width: 100%;
+        }
+        #loading {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        #loading-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ccc;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 1.5em;
+            line-height: 1.7;
+        }
+        .fc-daygrid-day.selected {
+            background-color: #cce5ff !important;
+        }
+        .lunar-text {
+            font-size: 11px;
+            color: #888;
+            display: block;
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .fc-daygrid-day-frame {
+            position: relative;
+        }
+        #plot-img {
+            max-width: 100%;
+            display: none;
+            margin-top: 20px;
+        }
+        #summary-box span {
+            display: block;
+            margin-bottom: 6px;
+        }
+        #summary-box input {
+            padding: 6px 10px;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        #summary-box button {
+            padding: 6px 14px;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #summary-box button:hover {
+            background-color: #0056b3;
+        }
+        .range-box {
+          border: 1px solid #ccc;
+          border-radius: 12px;
+          padding: 15px;
+          margin-top: 20px;
+          background-color: #f9f9f9;
+        }
+
+        .range-title {
+          font-weight: bold;
+          font-size: 16px;
+          margin-bottom: 10px;
+        }
+
+        .range-controls {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .range-controls input[type="text"] {
+          padding: 6px 10px;
+          border-radius: 6px;
+          border: 1px solid #aaa;
+          min-width: 130px;
+        }
+
+        .range-controls button {
+          padding: 6px 14px;
+          border-radius: 6px;
+          background-color: #007bff;
+          color: white;
+          border: none;
+          cursor: pointer;
+        }
+
+        .range-controls button:hover {
+          background-color: #0056b3;
+        }
+
+        .range-result {
+          margin-top: 12px;
+          font-family: monospace;
+          white-space: pre-wrap;
+        }
+
+        #realtime-box {
+          font-size: 12px;
+          line-height: 1.6;
+          padding: 15px;
+        }
+
+        #realtime-data {
+          font-family: "Microsoft YaHei", sans-serif;
+          color: #333;
+          margin-top: 4px;    /* ✅ 控制标题与内容的垂直间距 */
+          line-height: 1.5;   /* ✅ 控制多行内容的行距 */
+          font-size: 15px;
+        }
+        .box h3 {
+          font-size: 16px;
+          margin-bottom: 8px;
+          font-weight: bold;
+        }
+
+        #battery-container {
+          display: flex;
+          align-items: center;
+          font-size:13px;
+        }
+
+        #battery {
+          width: 50px;
+          height: 20px;
+          border: 2px solid #333;
+          border-radius: 4px;
+          position: relative;
+          margin-right: 6px;
+          background-color: #fff;
+          box-sizing: border-box;
+        }
+
+        #battery::after {
+          content: '';
+          position: absolute;
+          top: 4px;
+          right: -6px;
+          width: 4px;
+          height: 12px;
+          background-color: #333;
+          border-radius: 1px;
+        }
+
+        #battery-fill {
+          height: 100%;
+          background-color: #4caf50;
+          width: 0%;
+          transition: width 0.4s ease;
+          border-radius: 2px 0 0 2px;
+        }
+
+        #battery-percent {
+          font-size: 13px;
+          color: #444;
+          min-width: 36px;
+        }
+
+        .realtime-row {
+          display: flex;
+          align-items: center;
+          gap: 200px;
+          padding-left: 6px;
+        }
+
+
+    </style>
+</head>
+<body>
+    <h2>太阳能光伏数据查看系统</h2>
+    <div class="grid-container">
+        <div class="box" id='calendar'></div>
+        <div class="box" id="result" style="visibility: hidden;">
+            <h3 id="data-title">数据结果</h3>
+            <div id="loading" style="display:none;">
+                <div id="loading-spinner"></div>
+                <span>加载中...</span>
+            </div>
+            <pre id="data-content">(点击日期查看电网用电与太阳能发电数据)</pre>
+            <img id="plot-img" src="" alt="图像加载中...">
+        </div>
+        <div class="box" id="summary-box">
+            <h3>📊 数据汇总</h3>
+            <span id="monthly-power">本月用电量（电网）：-</span>
+            <span id="yearly-power">本年用电量（电网）：-</span>
+            <span id="monthly-solar">本月发电量（太阳能）：-</span>
+            <span id="yearly-solar">本年发电量（太阳能）：-</span>
+            <div class="range-box">
+              <div class="range-title">🔍 按日期汇总查询</div>
+              <div class="range-controls">
+                <input type="text" id="start-date" placeholder="起始日期">
+                <span class="to-text">到</span>
+                <input type="text" id="end-date" placeholder="结束日期">
+                <button onclick="fetchRangeSummary()">查询</button>
+              </div>
+              <div id="range-summary" class="range-result"></div>
+            </div>
+            <!-- ⏰ 按小时段查询 -->
+            <div class="range-box">
+              <div class="range-title">⏰ 按小时段查询(数据量巨大，建议不要超过72小时)</div>
+              <div class="range-controls">
+                <input type="text" id="start-datetime" placeholder="起始时间">
+                <span class="to-text">到</span>
+                <input type="text" id="end-datetime" placeholder="结束时间">
+                <button onclick="fetchHourSummary()">查询</button>
+              </div>
+              <div id="hour-summary" class="range-result"></div>
+            </div>
+        </div>
+        <div class="box" id="realtime-box">
+          <h3>⏱ 实时数据面板</h3>
+          <div class="realtime-row">
+            <div id="realtime-data">加载中...</div>
+            <div id="battery-container">
+              <div id="battery">
+                <div id="battery-fill"></div>
+              </div>
+              <span id="battery-percent">--%</span>
+            </div>
+          </div>
+        </div>
+
+    <script>
+        flatpickr("#start-date", { dateFormat: "Y-m-d" });
+        flatpickr("#end-date", { dateFormat: "Y-m-d" });
+        flatpickr("#start-datetime", { enableTime: true, dateFormat: "Y-m-d H:i",time_24hr:true});
+        flatpickr("#end-datetime", { enableTime: true, dateFormat: "Y-m-d H:i",time_24hr:true });
+
+            // 自动汇总函数
+        function fetchAutoSummary() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            const endDateObj = new Date(year, month, 0);  // 月末
+
+            const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+
+            const endOfMonth = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
+
+            const startOfYear = `${year}-01-01`;
+            const endOfYear = `${year}-12-31`;
+
+            Promise.all([
+                axios.get(`/get_summary?start=${startOfMonth}&end=${endOfMonth}`),
+                axios.get(`/get_summary?start=${startOfYear}&end=${endOfYear}`)
+            ]).then(([monthRes, yearRes]) => {
+                const monthData = monthRes.data;
+                const yearData = yearRes.data;
+                document.getElementById('monthly-power').innerText = `本月用电量（电网）：${monthData.total_kwh || 0} kWh`;
+                document.getElementById('monthly-solar').innerText = `本月发电量（太阳能）：${monthData.total_solar || 0} kWh`;
+                document.getElementById('yearly-power').innerText = `本年用电量（电网）：${yearData.total_kwh || 0} kWh`;
+                document.getElementById('yearly-solar').innerText = `本年发电量（太阳能）：${yearData.total_solar || 0} kWh`;
+            }).catch(() => {
+                console.warn('自动汇总数据加载失败');
+            });
+        }
+
+        function updateRealtimePanel() {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const today = now.toLocaleDateString('zh-CN', {
+            year: 'numeric', month: '2-digit', day: '2-digit'
+            }).replaceAll('/', '-');
+            axios.get(`/get_summary?start=${today}&end=${today}`)
+                .then(res => {
+                    const data = res.data || {};
+                    const powerNum = data.realtime_power;
+                    const solarNum = data.solar_power;
+                    const power = (typeof powerNum === 'number') ? powerNum.toFixed(3) : '--';
+                    const solar = (typeof solarNum === 'number') ? solarNum.toFixed(3) : '--';
+
+                    document.getElementById('realtime-data').innerHTML = `
+        最近更新时间：${timeStr}<br>
+        当前电网输送电功率：${power} kW<br>
+        当前太阳能发电功率：${solar} kW<br>`;
+
+                    // 电池图标
+                    const installedCapacity = 16.8;
+                    const fill = document.getElementById('battery-fill');
+                    const percentText = document.getElementById('battery-percent');
+                    if (fill && percentText) {
+                        let percent = 0;
+                        if (typeof solarNum === 'number' && installedCapacity > 0) {
+                            percent = Math.min(Math.max(solarNum / installedCapacity * 100, 0), 100);
+                            fill.style.width = `${percent.toFixed(0)}%`;
+                            percentText.innerText = `${percent.toFixed(0)}%`;
+                        } else {
+                            fill.style.width = `0%`;
+                            percentText.innerText = `--%`;
+                        }
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('realtime-data').innerText = '❌ 无法获取实时数据';
+                    const fill = document.getElementById('battery-fill');
+                    const percentText = document.getElementById('battery-percent');
+                    if (fill && percentText) {
+                        fill.style.width = `0%`;
+                        percentText.innerText = `--%`;
+                    }
+                });
+        }
+
+
+        function fetchRangeSummary() {
+            const start = document.getElementById('start-date').value;
+            const end = document.getElementById('end-date').value;
+            if (!start || !end) return;
+            axios.get(`/get_summary?start=${start}&end=${end}`)
+                .then(res => {
+                    const data = res.data;
+                    document.getElementById('range-summary').innerText =
+                        `所选区间总用电量：${data.total_kwh || 0} kWh\n所选区间总发电量：${data.total_solar || 0} kWh`;
+                })
+                .catch(() => {
+                    document.getElementById('range-summary').innerText = '汇总获取失败';
+                });
+        }
+        function fetchHourSummary() {
+            const start = document.getElementById('start-datetime').value;
+            const end = document.getElementById('end-datetime').value;
+            const summaryEl = document.getElementById('hour-summary');
+
+            if (!start || !end) return;
+
+
+            // 👇 加载中提示放这里
+            summaryEl.innerText = '⏳ 数据加载中...';
+
+            axios.get(`/get_hourly_summary?start_time=${encodeURIComponent(start)}&end_time=${encodeURIComponent(end)}`)
+                .then(res => {
+                    const data = res.data;
+                    document.getElementById('hour-summary').innerText =
+                        `时段总用电量：${data.hourly_kwh || 0} kWh\n时段总发电量：${data.hourly_solar || 0} kWh`;
+                })
+                .catch(err => {
+                    console.error('获取失败', err);
+                    summaryEl.innerText = '获取失败，请检查时间范围或服务器状态';
+                });
+        }
+
+        function fetchMonthAndYearSummary(year, month) {
+            const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+            const endDateObj = new Date(year, month, 0);  // 月末
+            const endOfMonth = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
+
+            const startOfYear = `${year}-01-01`;
+            const endOfYear = `${year}-12-31`;
+
+            Promise.all([
+                axios.get(`/get_summary?start=${startOfMonth}&end=${endOfMonth}`),
+                axios.get(`/get_summary?start=${startOfYear}&end=${endOfYear}`)
+            ]).then(([monthRes, yearRes]) => {
+                const monthData = monthRes.data;
+                const yearData = yearRes.data;
+                document.getElementById('monthly-power').innerText = `本月用电量（电网）：${monthData.total_kwh || 0} kWh`;
+                document.getElementById('monthly-solar').innerText = `本月发电量（太阳能）：${monthData.total_solar || 0} kWh`;
+                document.getElementById('yearly-power').innerText = `本年用电量（电网）：${yearData.total_kwh || 0} kWh`;
+                document.getElementById('yearly-solar').innerText = `本年发电量（太阳能）：${yearData.total_solar || 0} kWh`;
+            }).catch(err => {
+                console.warn('获取月/年汇总失败', err);
+            });
+        }
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            let lastSelectedCell = null;
+
+            const renderLunar = () => {
+                const dayCells = document.querySelectorAll('.fc-daygrid-day');
+                dayCells.forEach(cell => {
+                    const dateStr = cell.getAttribute('data-date');
+                    if (!dateStr) return;
+
+                    try {
+                        const date = new Date(dateStr + 'T00:00:00');
+                        const lunar = Lunar.fromDate(date);
+                        const holiday = lunar.getFestivals().concat(lunar.getOtherFestivals()).join(',');
+                        const jieqi = lunar.getJieQi();  // 获取节气（如“春分”、“冬至”）
+                        let label = '';
+
+                        if (holiday) {
+                          label = holiday;  // 优先显示节日
+                        } else if (jieqi) {
+                          label = jieqi;    // 然后显示节气
+                        } else if (lunar.getDayInChinese() === '初一') {
+                          label = lunar.getMonthInChinese() + '月';  // 初一显示“六月”
+                        } else {
+                          label = lunar.getDayInChinese();  // 其余显示“初二”“十五”等
+                        }
+
+
+                        const frame = cell.querySelector('.fc-daygrid-day-frame');
+                        if (frame && !frame.querySelector('.lunar-text')) {
+                            const span = document.createElement('span');
+                            span.className = 'lunar-text';
+                            span.innerText = label;
+                            frame.appendChild(span);
+                        }
+                    } catch (e) {
+                        console.warn('农历渲染错误：', e);
+                    }
+                });
+            };
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'zh-cn',
+                headerToolbar: {
+                    left: 'prevYear,prev',
+                    center: 'title',
+                    right: 'next,nextYear'
+                },
+                datesSet: function(info) {
+                  setTimeout(renderLunar, 100);
+
+                  const now = calendar.getDate();  // ✅ 当前视图中心点
+                  const year = now.getFullYear();
+                  const month = now.getMonth() + 1;
+
+                  // ✅ 调用你的汇总函数
+                  fetchMonthAndYearSummary(year, month);
+                },
+
+                dateClick: function(info) {
+                    if (lastSelectedCell) {
+                        lastSelectedCell.classList.remove('selected');
+                    }
+                    lastSelectedCell = info.dayEl;
+                    lastSelectedCell.classList.add('selected');
+
+                    const resultDiv = document.getElementById("result");
+                    const dataTitle = document.getElementById("data-title");
+                    const dataContent = document.getElementById("data-content");
+                    const loading = document.getElementById("loading");
+                    const img = document.getElementById("plot-img");
+
+                    resultDiv.style.visibility = 'hidden';
+                    dataContent.innerText = '';
+                    img.style.display = 'none';
+
+                    const dateStr = info.dateStr;
+                    dataTitle.innerText = `数据结果 - ${dateStr}`;
+                    loading.style.display = 'flex';
+                    resultDiv.style.visibility = 'visible';
+
+                    axios.get(`/get_data?date=${dateStr}`)
+                        .then(res => {
+                            const data = res.data;
+                            let text = data.text || '(未查到数据)';
+                            if (typeof data.daily_energy === 'number') {
+                                const lines = text.split('\n');
+
+                                // 防止重复插入
+                                if (!lines.some(line => line.includes('当日发电量：'))) {
+                                    const solarStart = lines.findIndex(line => line.includes('🔆 太阳能发电'));
+                                    if (solarStart !== -1) {
+                                        for (let i = solarStart + 1; i < lines.length; i++) {
+                                            if (lines[i].startsWith('结束时间：')) {
+                                                lines.splice(i + 1, 0, `当日发电量：${data.daily_energy.toFixed(1)} kWh`);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    text = lines.join('\n');
+                                }
+                            }
+
+
+                            dataContent.innerText = text;
+                            if (data.plot_url) {
+                                img.src = data.plot_url + '?t=' + new Date().getTime();
+                                img.style.display = 'block';
+                            } else {
+                                img.style.display = 'none';
+                            }
+                        })
+                        .catch(err => {
+                            dataContent.innerText = '(请求失败)';
+                            img.style.display = 'none';
+                        })
+                        .finally(() => {
+                            loading.style.display = 'none';
+                        });
+                }
+            });
+            calendar.render();
+            renderLunar();
+            fetchAutoSummary();
+
+            updateRealtimePanel();
+            setInterval(updateRealtimePanel, 60000);
+        });
+    </script>
+    </div>
+</body>
+</html>

@@ -18,3 +18,8 @@ dist/
 .idea/
 .flask_webapp.oldold/
 .flask_webapp.old/
+*.json
+*.png
+*.json
+*.json
+flask_webapp/summary_cache/2025-06-23.json
