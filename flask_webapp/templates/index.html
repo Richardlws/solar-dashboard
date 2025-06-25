@@ -369,6 +369,14 @@
                             percent = Math.min(Math.max(solarNum / installedCapacity * 100, 0), 100);
                             fill.style.width = `${percent.toFixed(0)}%`;
                             percentText.innerText = `${percent.toFixed(0)}%`;
+                            // 设置颜色
+                            if (percent <= 10) {
+                                fill.style.backgroundColor = '#f44336';  // 红色
+                            } else if (percent <= 30) {
+                                fill.style.backgroundColor = '#ff9800';  // 黄色
+                            } else {
+                                fill.style.backgroundColor = '#4caf50';  // 绿色
+                            }
                         } else {
                             fill.style.width = `0%`;
                             percentText.innerText = `--%`;
