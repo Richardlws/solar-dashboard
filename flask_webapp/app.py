@@ -255,14 +255,14 @@ def get_summary():
                 port1_path = os.path.join(DATA_DIR, f"[192.168.1.254] {today_str}-port1.txt")
                 port2_path = os.path.join(DATA_DIR, f"[192.168.1.254] {today_str}-port2.txt")
 
-                print(f"[实时数据] 开始处理 {today_str}")
-                print(f"[实时数据] port1 路径: {port1_path}")
-                print(f"[实时数据] port2 路径: {port2_path}")
+                #print(f"[实时数据] 开始处理 {today_str}")
+                #print(f"[实时数据] port1 路径: {port1_path}")
+                #print(f"[实时数据] port2 路径: {port2_path}")
 
                 if os.path.exists(port1_path):
                     try:
                         result = extract_and_calculate(port1_path)
-                        print(f"[实时数据] port1 提取结果: {result}")
+                        #print(f"[实时数据] port1 提取结果: {result}")
                         if "last_power_kw" in result:
                             realtime_power = result["last_power_kw"]
                     except Exception as e:
@@ -273,7 +273,7 @@ def get_summary():
                 if os.path.exists(port2_path):
                     try:
                         data2 = parse_modbus_data(port2_path)
-                        print(f"[实时数据] port2 最新记录: {data2[-1] if data2 else '空'}")
+                        #print(f"[实时数据] port2 最新记录: {data2[-1] if data2 else '空'}")
                         if data2 and len(data2[-1]) >= 4:
                             solar_power = data2[-1][3]
                     except Exception as e:
@@ -576,7 +576,6 @@ def generate_yesterday_cache():
                 last = data[-1]
                 maxrow = max(data, key=lambda x: x[3])
                 daily_energy = last[1]
-
                 output_lines.append("\n🔆 太阳能发电")
                 output_lines.append(f"结束时间：{last[0]}")
                 output_lines.append(f"当日发电量：{daily_energy:.1f} kWh")
