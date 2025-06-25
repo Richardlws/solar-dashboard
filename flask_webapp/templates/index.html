@@ -191,6 +191,7 @@
           display: flex;
           align-items: center;
           font-size:13px;
+          margin-top: 2px;
         }
 
         #battery {
@@ -231,8 +232,8 @@
 
         .realtime-row {
           display: flex;
-          align-items: center;
-          gap: 200px;
+          align-items: flex-start;
+          gap: 20px;
           padding-left: 6px;
         }
 
@@ -343,9 +344,14 @@
                     const solar = (typeof solarNum === 'number') ? solarNum.toFixed(3) : '--';
 
                     document.getElementById('realtime-data').innerHTML = `
-        最近更新时间：${timeStr}<br>
-        当前电网输送电功率：${power} kW<br>
-        当前太阳能发电功率：${solar} kW<br>`;
+                     <div style="display: flex; align-items: center; gap: 10px;">
+                        <div>
+                          最近更新时间：${timeStr}<br>
+                          当前电网输送电功率：${power} kW<br>
+                          当前太阳能发电功率：${solar} kW
+                        </div>
+                     </div>
+                    `;
 
                     // 电池图标
                     const installedCapacity = 16.8;
@@ -559,6 +565,18 @@
                 }
             });
             calendar.render();
+            const today = new Date().toISOString().slice(0, 10);
+            const cell = document.querySelector(`.fc-daygrid-day[data-date="${today}"]`);
+            if (cell) {
+                calendar.trigger('dateClick', {
+                    date: new Date(today),
+                    dateStr: today,
+                    allDay: true,
+                    dayEl: cell,
+                    jsEvent: null,
+                    view: calendar.view
+                });
+            }
             renderLunar();
             fetchAutoSummary();
 
