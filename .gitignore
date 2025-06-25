@@ -16,3 +16,5 @@ dist/
 # 忽略 IDE 文件
 .vscode/
 .idea/
+.flask_webapp.oldold/
+.flask_webapp.old/
