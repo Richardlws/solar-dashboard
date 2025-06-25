@@ -1,0 +1,7 @@
+*.pyc
+*.xml
+/flask_webapp.oldold
+/flask_webapp.old
+*.toc
+*.zip
+/companysungrow/build
