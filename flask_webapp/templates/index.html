@@ -3,12 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <title>太阳能光伏数据查看系统</title>
-    <link href='https://cdn.bootcdn.net/ajax/libs/fullcalendar/6.1.8/index.global.min.css' rel='stylesheet' />
-    <script src='https://cdn.bootcdn.net/ajax/libs/fullcalendar/6.1.8/index.global.min.js'></script>
+    <link rel="icon" href="data:;base64,=">
+    <!--<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />-->
+    <!-- ✅ FullCalendar 主 JS -->
+    <script src="{{ url_for('static', filename='js/index.global.min.js') }}"></script>
+
+    <!-- ✅ Axios -->
     <script src="https://cdn.bootcdn.net/ajax/libs/axios/1.6.7/axios.min.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/lunar-javascript/1.5.0/lunar.min.js"></script>
+
+    <!-- ✅ Lunar（农历）JS -->
+    <script src="{{ url_for('static', filename='js/lunar.min.js') }}"></script>
+
+    <!-- ✅ 确保 lunar 加载完后再定义 Lunar 变量 -->
+    <script>
+        if (window.Lunar) {
+            const Lunar = window.Lunar;
+          } else {
+            console.error("❌ 农历库加载失败！");
+          }
+    </script>
+
+    <!-- ✅ flatpickr 样式与功能 -->
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdn.bootcdn.net/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+
 
     <style>
         body {
@@ -286,9 +304,11 @@
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth() + 1;
+            const endDateObj = new Date(year, month, 0);  // 月末
 
             const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
-            const endOfMonth = new Date(year, month, 0).toISOString().slice(0, 10);
+
+            const endOfMonth = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
 
             const startOfYear = `${year}-01-01`;
             const endOfYear = `${year}-12-31`;
@@ -311,8 +331,9 @@
         function updateRealtimePanel() {
             const now = new Date();
             const timeStr = now.toTimeString().split(' ')[0];
-            const today = now.toISOString().slice(0, 10);
-
+            const today = now.toLocaleDateString('zh-CN', {
+            year: 'numeric', month: '2-digit', day: '2-digit'
+            }).replaceAll('/', '-');
             axios.get(`/get_summary?start=${today}&end=${today}`)
                 .then(res => {
                     const data = res.data || {};
@@ -354,10 +375,6 @@
         }
 
 
-        setInterval(updateRealtimePanel, 60000);  // 每1分钟刷新
-        updateRealtimePanel();  // 初始调用
-
-
         function fetchRangeSummary() {
             const start = document.getElementById('start-date').value;
             const end = document.getElementById('end-date').value;
@@ -397,7 +414,9 @@
 
         function fetchMonthAndYearSummary(year, month) {
             const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
-            const endOfMonth = new Date(year, month, 0).toISOString().slice(0, 10);
+            const endDateObj = new Date(year, month, 0);  // 月末
+            const endOfMonth = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
+
             const startOfYear = `${year}-01-01`;
             const endOfYear = `${year}-12-31`;
 
@@ -417,8 +436,6 @@
         }
 
 
-
-
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
             let lastSelectedCell = null;
@@ -433,8 +450,19 @@
                         const date = new Date(dateStr + 'T00:00:00');
                         const lunar = Lunar.fromDate(date);
                         const holiday = lunar.getFestivals().concat(lunar.getOtherFestivals()).join(',');
-                        const lunarStr = lunar.getMonthInChinese() + '月' + lunar.getDayInChinese();
-                        const label = holiday || lunarStr;
+                        const jieqi = lunar.getJieQi();  // 获取节气（如“春分”、“冬至”）
+                        let label = '';
+
+                        if (holiday) {
+                          label = holiday;  // 优先显示节日
+                        } else if (jieqi) {
+                          label = jieqi;    // 然后显示节气
+                        } else if (lunar.getDayInChinese() === '初一') {
+                          label = lunar.getMonthInChinese() + '月';  // 初一显示“六月”
+                        } else {
+                          label = lunar.getDayInChinese();  // 其余显示“初二”“十五”等
+                        }
+
 
                         const frame = cell.querySelector('.fc-daygrid-day-frame');
                         if (frame && !frame.querySelector('.lunar-text')) {
@@ -533,7 +561,11 @@
             calendar.render();
             renderLunar();
             fetchAutoSummary();
+
+            updateRealtimePanel();
+            setInterval(updateRealtimePanel, 60000);
         });
     </script>
+    </div>
 </body>
 </html>
