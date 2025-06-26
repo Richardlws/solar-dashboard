@@ -16,3 +16,7 @@ dist/
 # 忽略 IDE 文件
 .vscode/
 .idea/
+*.json
+*.png
+flask_webapp/summary_cache/2025-06-23.json
+flask_webapp/static/plots/2025-06-13.png
