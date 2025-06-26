@@ -20,3 +20,12 @@ dist/
 *.png
 flask_webapp/summary_cache/2025-06-23.json
 flask_webapp/static/plots/2025-06-13.png
+=======
+.flask_webapp.oldold/
+.flask_webapp.old/
+*.json
+*.png
+*.json
+*.json
+flask_webapp/summary_cache/2025-06-23.json
+

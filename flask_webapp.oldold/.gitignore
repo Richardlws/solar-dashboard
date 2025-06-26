@@ -18,5 +18,5 @@ dist/
 .idea/
 
 # 忽略缓存文件
-.summary_cache/
-.cache/
+.summary_cache
+.cache

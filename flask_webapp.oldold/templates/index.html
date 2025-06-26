@@ -190,10 +190,7 @@
         #battery-container {
           display: flex;
           align-items: center;
-          gap:4px;
           font-size:13px;
-          margin-right:980px;
-          margin-top: 10px;
         }
 
         #battery {
@@ -202,6 +199,7 @@
           border: 2px solid #333;
           border-radius: 4px;
           position: relative;
+          margin-right: 6px;
           background-color: #fff;
           box-sizing: border-box;
         }
@@ -233,14 +231,9 @@
 
         .realtime-row {
           display: flex;
-          align-items: flex-start;
-          gap: 20px;
-          padding-left: 6px;
-        }
-        .realtime-title {
-          display: flex;
-          justify-content: space-between;
           align-items: center;
+          gap: 200px;
+          padding-left: 6px;
         }
 
 
@@ -288,8 +281,9 @@
             </div>
         </div>
         <div class="box" id="realtime-box">
-          <div class="realtime-title">
-            <h3>⏱ 实时数据面板</h3>
+          <h3>⏱ 实时数据面板</h3>
+          <div class="realtime-row">
+            <div id="realtime-data">加载中...</div>
             <div id="battery-container">
               <div id="battery">
                 <div id="battery-fill"></div>
@@ -297,7 +291,6 @@
               <span id="battery-percent">--%</span>
             </div>
           </div>
-          <div id="realtime-data">加载中...</div>
         </div>
 
     <script>
@@ -350,17 +343,12 @@
                     const solar = (typeof solarNum === 'number') ? solarNum.toFixed(3) : '--';
 
                     document.getElementById('realtime-data').innerHTML = `
-                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <div>
-                          最近更新时间：${timeStr}<br>
-                          当前电网输送电功率：${power} kW<br>
-                          当前太阳能发电功率：${solar} kW
-                        </div>
-                     </div>
-                    `;
+        最近更新时间：${timeStr}<br>
+        当前电网输送电功率：${power} kW<br>
+        当前太阳能发电功率：${solar} kW<br>`;
 
                     // 电池图标
-                    const installedCapacity = 15;
+                    const installedCapacity = 16.8;
                     const fill = document.getElementById('battery-fill');
                     const percentText = document.getElementById('battery-percent');
                     if (fill && percentText) {
@@ -369,14 +357,6 @@
                             percent = Math.min(Math.max(solarNum / installedCapacity * 100, 0), 100);
                             fill.style.width = `${percent.toFixed(0)}%`;
                             percentText.innerText = `${percent.toFixed(0)}%`;
-                            // 设置颜色
-                            if (percent <= 10) {
-                                fill.style.backgroundColor = '#f44336';  // 红色
-                            } else if (percent <= 30) {
-                                fill.style.backgroundColor = '#ff9800';  // 黄色
-                            } else {
-                                fill.style.backgroundColor = '#4caf50';  // 绿色
-                            }
                         } else {
                             fill.style.width = `0%`;
                             percentText.innerText = `--%`;
@@ -500,7 +480,6 @@
             const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'zh-cn',
-                fixedWeekCount: false,
                 headerToolbar: {
                     left: 'prevYear,prev',
                     center: 'title',
@@ -580,32 +559,12 @@
                 }
             });
             calendar.render();
-            const today = new Date().toLocaleDateString('zh-CN', {
-                year: 'numeric', month: '2-digit', day: '2-digit'
-                }).replaceAll('/', '-');
-
-            const cell = document.querySelector(`.fc-daygrid-day[data-date="${today}"]`);
-            if (cell) {
-                calendar.trigger('dateClick', {
-                    date: new Date(today),
-                    dateStr: today,
-                    allDay: true,
-                    dayEl: cell,
-                    jsEvent: null,
-                    view: calendar.view
-                });
-            }
             renderLunar();
             fetchAutoSummary();
 
             updateRealtimePanel();
             setInterval(updateRealtimePanel, 60000);
         });
-        //console.log("当前浏览器时间：", new Date().toString());
-        //console.log("toISOString（UTC）：", new Date().toISOString());
-        //console.log("toLocaleDateString（默认）：", new Date().toLocaleDateString());
-        //console.log("toLocaleDateString（指定 zh-CN）：", new Date().toLocaleDateString('zh-CN'));
-
     </script>
     </div>
 </body>
