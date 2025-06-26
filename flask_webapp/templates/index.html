@@ -309,6 +309,7 @@
             // 自动汇总函数
         function fetchAutoSummary() {
             const now = new Date();
+            now.setDate(now.getDate() - 1);  // ✅ 昨天
             const year = now.getFullYear();
             const month = now.getMonth() + 1;
             const endDateObj = new Date(year, month, 0);  // 月末
@@ -353,8 +354,8 @@
                      <div style="display: flex; align-items: center; gap: 10px;">
                         <div>
                           最近更新时间：${timeStr}<br>
-                          当前电网输送电功率：${power} kW<br>
-                          当前太阳能发电功率：${solar} kW
+                          电网瞬时功率：${power} kW<br>
+                          太阳能瞬时功率：${solar}
                         </div>
                      </div>
                     `;
