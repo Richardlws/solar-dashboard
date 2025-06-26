@@ -500,6 +500,7 @@
             const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'zh-cn',
+                fixedWeekCount: false,
                 headerToolbar: {
                     left: 'prevYear,prev',
                     center: 'title',
@@ -579,7 +580,10 @@
                 }
             });
             calendar.render();
-            const today = new Date().toISOString().slice(0, 10);
+            const today = new Date().toLocaleDateString('zh-CN', {
+                year: 'numeric', month: '2-digit', day: '2-digit'
+                }).replaceAll('/', '-');
+
             const cell = document.querySelector(`.fc-daygrid-day[data-date="${today}"]`);
             if (cell) {
                 calendar.trigger('dateClick', {
@@ -597,6 +601,11 @@
             updateRealtimePanel();
             setInterval(updateRealtimePanel, 60000);
         });
+        //console.log("当前浏览器时间：", new Date().toString());
+        //console.log("toISOString（UTC）：", new Date().toISOString());
+        //console.log("toLocaleDateString（默认）：", new Date().toLocaleDateString());
+        //console.log("toLocaleDateString（指定 zh-CN）：", new Date().toLocaleDateString('zh-CN'));
+
     </script>
     </div>
 </body>
